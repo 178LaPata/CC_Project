@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.ConnectException;
 import java.net.Socket;
+import java.util.ArrayList;
 
 public class FS_Node {
 
@@ -61,11 +62,26 @@ public class FS_Node {
                         out.writeUTF(option[1]);
                         out.flush();
 
+                        ArrayList<String> files = new ArrayList<>();
+                        while (true){
+                            String ip = in.readUTF();
+                            if (ip.equals("end")) break;
+                            FileInfo file = (FileInfo) in.readObject();
+                            files.add(ip);
+                        }
+
+                        System.out.println(files);
+
+                        break;
+
                     }
 
                     case "QUIT":{
                         out.writeUTF("QUIT");
                         out.flush();
+                        loop = false;
+
+                        break;
                     }
 
                 }
@@ -87,8 +103,9 @@ public class FS_Node {
         }
         catch (IOException e){
             e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
         }
-
 
 
     }

@@ -105,13 +105,19 @@ public class FS_Tracker {
                             String file = in.readUTF();
 
                             for (Map.Entry<String,List<FileInfo>> entry : node_files.entrySet()){
-                                List<FileInfo> fds = entry.getValue();
                                 for (FileInfo name : entry.getValue()){
-                                    for (String nome : )
+                                    if (name.getNome().equals(file)){
+                                        out.writeUTF(entry.getKey());
+                                        out.writeObject(name);
+                                        out.flush();
+                                        break;
+                                    }
                                 }
-
                             }
 
+                            out.writeUTF("end");
+                            out.flush();
+                            break;
 
                         }
 
