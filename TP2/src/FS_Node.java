@@ -40,8 +40,6 @@ public class FS_Node {
                 }
                  */
                 }
-
-
             }
 
             BufferedReader inStdin = new BufferedReader(new InputStreamReader(System.in));
@@ -69,11 +67,8 @@ public class FS_Node {
                             FileInfo file = (FileInfo) in.readObject();
                             files.add(ip);
                         }
-
                         System.out.println(files);
-
                         break;
-
                     }
 
                     case "QUIT":{
@@ -83,13 +78,8 @@ public class FS_Node {
 
                         break;
                     }
-
                 }
-
-
             }
-
-
 
             System.out.println("Terminando Programa...");
 
@@ -106,8 +96,6 @@ public class FS_Node {
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
-
-
     }
 
 }
