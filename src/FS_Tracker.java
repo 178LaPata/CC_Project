@@ -81,6 +81,8 @@ public class FS_Tracker {
 
                     int length = in.readInt();
 
+                    System.out.println(length);
+
                     byte[] received = new byte[length];
                     in.readFully(received,0,length);
 
@@ -134,37 +136,39 @@ public class FS_Tracker {
 
                         case 3:{
 
+                            System.out.println("GET");
+
                             String file_name = new String(received, StandardCharsets.UTF_8).substring(1);
 
-                            Map<String,FileInfo> fileInfoMap = new HashMap<>();
+                            List<String> ips = new ArrayList<>();
 
                             if (file_locations.containsKey(file_name)){
-
-                                for (String ip : file_locations.get(file_name)){
-                                    for (FileInfo fileInfo : node_files.get(ip)){
-                                        if (fileInfo.getNome().equals(file_name)){
-                                            fileInfoMap.put(ip,fileInfo);
-                                            break;
-                                        }
-                                    }
-                                }
+                                ips = file_locations.get(file_name);
                             }
 
 
-                            out.writeInt(fileInfoMap.size());
+                            out.writeInt(ips.size());
+
+                            
                             out.flush();
 
-                            if (!fileInfoMap.isEmpty()) {
-                                for (Map.Entry<String,FileInfo> fi : fileInfoMap.entrySet()) {
-                                    byte[] fileInfo = fi.getValue().serialize();
-                                    out.writeInt(fileInfo.length);
-                                    out.write(fileInfo);
-                                    out.writeUTF(fi.getKey());
-                                    out.flush();
+                            if (!ips.isEmpty()) {
+                                for (String ip : ips){
+                                    List<FileInfo> fileInfoList = node_files.get(ip);
+                                    for (FileInfo fileInfo : fileInfoList){
+                                        if (fileInfo.getNome().equals(file_name)){
+                                            System.out.println(fileInfo);
+                                            byte[] fileInfoBytes = fileInfo.serialize();
+                                            System.out.println(FileInfo.deserialize(fileInfoBytes)   );
+                                            out.writeInt(fileInfoBytes.length);
+                                            out.write(fileInfoBytes);
+                                            out.flush();
+                                            break;
+                                        }
+                                    }   
                                 }
                             }
-
-                            break;
+                            else break;
 
                         }
 

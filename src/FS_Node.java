@@ -5,6 +5,8 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FS_Node {
 
@@ -81,27 +83,43 @@ public class FS_Node {
 
                     case "GET":{
 
-                        byte[] choice = ("3" + option[1]).getBytes();
-                        out.writeInt(choice.length);
-                        out.write(choice);
+                        byte choice = 3;
+
+                        byte[] combined = new byte[option[1].length() + 1];
+                    
+                        ByteBuffer buffer_message = ByteBuffer.wrap(combined);
+                        buffer_message.put(choice);
+                        buffer_message.put(option[1].getBytes());
+                        byte[] message = buffer_message.array();
+                        out.writeInt(message.length);
+                        out.write(message);
                         out.flush();
 
-                        if (in.readInt() != 0) {
+                        int size = in.readInt();
+                        
 
-                            int
+
+                        if (size != 0) {
+                            
+                            Map<String,FileInfo> fileInfoMap = new HashMap<>();
+
+
+                            for (int i = 0; i<size; i++){
+
+                                int length = in.readInt();
+
+                                byte[] received = new byte[length];
+                                in.readFully(received,0,length);
+                                FileInfo fileInfo = FileInfo.deserialize(received);
+
+                                fileInfoMap.put(in.readUTF(),fileInfo);
+                            }
+                            
+                            System.out.println(fileInfoMap);
+
 
                         }
 
-
-                        ArrayList<String> files = new ArrayList<>();
-                        while (true){
-                            String ip = in.readUTF();
-                            if (ip.equals("end")) break;
-                            InfoPacket file = (InfoPacket) in.readObject();
-                            files.add(ip);
-                        }
-
-                        System.out.println(files);
 
                         break;
 

@@ -26,8 +26,12 @@ public class FileInfo implements Comparable<FileInfo> {
 
         String buffer;
 
-        if (blocos_disponiveis != null)
-            buffer = this.nome + " " + this.blocos_quantidade + " " + this.blocos_disponiveis;
+        if (blocos_disponiveis != null){
+            buffer = this.nome + " " + this.blocos_quantidade;
+            for (int i : blocos_disponiveis){
+                buffer = buffer + " " + i;
+            }
+        }
         else
             buffer = this.nome + " " + this.blocos_quantidade;
 
