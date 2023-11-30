@@ -22,92 +22,13 @@ public class FileInfo implements Comparable<FileInfo> {
         this.blocos_disponiveis = blocos_disponiveis;
     }
 
-    public byte[] serialize() throws IOException {
-
-        String buffer;
-
-        if (blocos_disponiveis != null){
-            buffer = this.nome + " " + this.blocos_quantidade;
-            for (int i : blocos_disponiveis){
-                buffer = buffer + " " + i;
-            }
-        }
-        else
-            buffer = this.nome + " " + this.blocos_quantidade;
-
-        /*
-        byte[] nome = this.nome.getBytes();
-
-        byte[] blocos_quantidade = new byte[]{
-                (byte) (this.blocos_quantidade >>> 24),
-                (byte) (this.blocos_quantidade >>> 16),
-                (byte) (this.blocos_quantidade >>> 8),
-                (byte) this.blocos_quantidade
-        };
-
-
-         */
-        /*
-        ByteBuffer buffer = ByteBuffer.allocate(this.blocos_disponiveis.size());
-        for (int i : blocos_disponiveis) {
-            buffer.putInt(i);
-        }
-        byte[] blocos_disponiveis = buffer.array();
-
-         */
-
-/*
-        byte[] combined = new byte[nome.length + blocos_quantidade.length];
-
-        ByteBuffer info = ByteBuffer.wrap(combined);
-
-        info.put(nome);
-        info.put(blocos_quantidade);
-
- */
-
-        //info.put(blocos_disponiveis);
-
-        return buffer.getBytes();
-    }
-
-    public static FileInfo deserialize(byte[] info){
-
-        String fds = new String(info, StandardCharsets.UTF_8).substring(1);
-
-        String[] splited = fds.split("\\s+");
-
-        String nome = splited[0];
-        int blocos_quantidade = Integer.parseInt(splited[1]);
-        List<Integer> blocos_disponiveis = new ArrayList<>();
-
-
-        if (splited.length == 2){
-            for (int i = 0; i<blocos_quantidade; i++){
-                blocos_disponiveis.add(i);
-            }
-        }
-        else{
-            for (int i = 2; i<splited.length; i++){
-                blocos_disponiveis.add(Integer.parseInt(splited[i]));
-            }
-        }
-
-        FileInfo fileInfo = new FileInfo(nome,blocos_quantidade,blocos_disponiveis);
-
-        System.out.println(fileInfo);
-
-
-        return fileInfo;
-    }
-
-
-
-
 
     @Override
     public String toString() {
-        return this.nome + " " + this.blocos_quantidade + " " + this.blocos_disponiveis;
+        if (blocos_disponiveis == null)
+            return this.nome + ";" + this.blocos_quantidade;
+        else
+            return this.nome + ";" + this.blocos_quantidade + ";" + this.blocos_disponiveis;
     }
 
 
@@ -124,6 +45,47 @@ public class FileInfo implements Comparable<FileInfo> {
     public int compareTo(FileInfo other) {
         return this.nome.compareTo(other.nome);
     }
+
+
+
+
+    public byte[] fileInfoToBytes(){
+
+        byte size_name = (byte) this.nome.length();
+        byte[] name = this.nome.getBytes();
+        byte[] blocos_quantidade = Serializer.intToFourBytes(this.blocos_quantidade);
+        byte[] blocos_disponiveis_size = Serializer.intToFourBytes(this.blocos_disponiveis.size());
+        byte[] blocos_disponiveis;
+
+        if (this.blocos_disponiveis.isEmpty())
+            blocos_disponiveis = new byte[0];
+
+        else {
+            ByteBuffer buffer_blocos_disponiveis = ByteBuffer.allocate(this.blocos_disponiveis.size()*4);
+
+            for (Integer i : this.blocos_disponiveis)
+                buffer_blocos_disponiveis.put(Serializer.intToFourBytes(i));
+
+            blocos_disponiveis = buffer_blocos_disponiveis.array();
+        }
+
+        ByteBuffer buffer = ByteBuffer.allocate(1+name.length+blocos_quantidade.length + blocos_disponiveis.length);
+
+        buffer.put(size_name);
+        buffer.put(name);
+        buffer.put(blocos_quantidade);
+        buffer.put(blocos_disponiveis_size);
+        buffer.put(blocos_disponiveis);
+
+        return buffer.array();
+    }
+
+    public FileInfo bytesToFileInfo(){
+
+    }
+
+
+
 
 
 }

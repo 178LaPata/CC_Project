@@ -1,3 +1,4 @@
+import javax.swing.*;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -74,7 +75,47 @@ public class FS_Tracker {
                 DataInputStream in = new DataInputStream(nodeSocket.getInputStream());
 
 
+                byte choice = in.readByte();
 
+                byte[] size_bytes = new byte[2];
+                in.readFully(size_bytes,0,2);
+                int size = Requests.twoBytesToInt(size_bytes);
+
+
+                byte[] message = new byte[size];
+                in.readFully(message,0,size);
+
+
+
+
+                /*
+                byte[] choice_read = new byte[1];
+                in.readFully(choice_read,0,1);
+
+
+                System.out.println(new String(choice_read,StandardCharsets.UTF_8));
+
+                byte[] size_size = new byte[1];
+                in.readFully(size_size,0,1);
+
+                byte sizefds = size_size[0];
+
+                byte[] size = new byte[sizefds];
+                in.readFully(size,0,sizefds);
+
+                int sizemano = Integer.getInteger(new String(size,StandardCharsets.UTF_8));
+
+
+                byte[] mssg = new byte[sizemano];
+                in.readFully(mssg,0,sizemano);
+
+
+                System.out.println(Arrays.toString(mssg));
+
+                 */
+
+
+                /*
                 boolean loop = true;
 
                 while (loop) {
@@ -222,7 +263,7 @@ public class FS_Tracker {
                         }
 
 
-                         */
+
 
                         case 0:{
                             loop = false;
@@ -237,6 +278,8 @@ public class FS_Tracker {
 
 
                 }
+
+                */
 
 
 

@@ -4,9 +4,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class FS_Node {
 
@@ -24,54 +22,30 @@ public class FS_Node {
             DataInputStream in = new DataInputStream(socket.getInputStream());
 
 
-            // Ler file names no folder escolhido para partilhar com tracker
-            File folder = new File(args[0]);
-            File[] listOfFiles = folder.listFiles();
 
-            if (listOfFiles != null) {
+            List<Integer> fds = new ArrayList<>();
 
-                byte choice = 1;
+            fds.toA
 
-                //byte[] ip = InetAddress.getLocalHost().toString().getBytes();
+            String[] register = {"REGISTER", args[0]};
 
-                for (int i = 0; i < listOfFiles.length; i++) {
-                    if (listOfFiles[i].isFile()) {
-                        File file = listOfFiles[i];
-                        byte[] fileInfo = new FileInfo(file.getName(), 3).serialize();
+            byte[] register_message = Requests.create_request(register);
 
-                        System.out.println(file.getName());
+            //System.out.println(new String(Requests.create_request(fds),StandardCharsets.UTF_8));
 
-
-
-                        byte[] combined = new byte[fileInfo.length + 1];
-
-                        System.out.println(combined.length);
-
-                        ByteBuffer buffer_message = ByteBuffer.wrap(combined);
-                        buffer_message.put(choice);
-                        buffer_message.put(fileInfo);
-                        byte[] message = buffer_message.array();
-
-                        System.out.println(message[0]);
-
-                        out.writeInt(message.length);
-                        out.write(message);
-                        out.flush();
-                    }
-                /*
-                else if (listOfFiles[i].isDirectory()) {
-                    System.out.println("Directory " + listOfFiles[i].getName());
-                }
-                 */
-                }
-
-
+            if (register_message != null) {
+                out.write(register_message);
+                out.flush();
             }
 
 
             BufferedReader inStdin = new BufferedReader(new InputStreamReader(System.in));
 
+
+/*
             boolean loop = true;
+
+
 
             while(loop){
 
@@ -159,6 +133,8 @@ public class FS_Node {
 
             }
 
+
+ */
 
 
             System.out.println("Terminando Programa...");
