@@ -16,7 +16,8 @@ public class Requests {
                 File folder = new File(input[1]);
                 File[] listOfFiles = folder.listFiles();
 
-                StringBuilder files_builder = new StringBuilder();
+                List<byte[]> fileInfos = new ArrayList<>();
+                int size_fileInfos = 0;
 
                 if (listOfFiles != null) {
 
@@ -34,8 +35,13 @@ public class Requests {
 
                             FileInfo fileInfo = new FileInfo(file.getName(), block_amount);
 
-                            files_builder.append(fileInfo);
-                            files_builder.append(" ");
+                            System.out.println(fileInfo);
+
+                            byte[] bytes_fileInfo = fileInfo.fileInfoToBytes();
+
+                            size_fileInfos += bytes_fileInfo.length;
+
+                            fileInfos.add(bytes_fileInfo);
                         }
 
                     }
@@ -47,31 +53,24 @@ public class Requests {
                 }
                 else return null;
 
-                String files_string = files_builder.deleteCharAt(files_builder.length()-1).toString();
-                int files_string_size = files_string.getBytes().length;
+                ByteBuffer byteBuffer = ByteBuffer.allocate(1+1+size_fileInfos);
 
-                byte[] message = new byte[files_string_size+3];
+                byte choice = 1;
 
-                message[0] = 1;
+                byteBuffer.put(choice);
+                byteBuffer.put((byte) fileInfos.size());
 
-                byte[] files_string_size_bytes = Serializer.intToTwoBytes(files_string_size);
-
-                message[1] = files_string_size_bytes[0];
-                message[2] = files_string_size_bytes[1];
-
-                int i = 3;
-                for (byte fileInfo : files_string.getBytes()){
-                    message[i] = fileInfo;
-                    i++;
+                for (byte[] bytes : fileInfos){
+                    byteBuffer.put(bytes);
                 }
 
-                return message;
+                return byteBuffer.array();
             }
 
         }
 
 
-        return new byte[0];
+        return null;
     }
 
 
@@ -79,19 +78,7 @@ public class Requests {
 
 
 
-    public static int twoBytesToInt(byte[] byteArray){
 
-        /*
-        // Making sure the byte array has at least 2 elements
-        if (byteArray.length < 2) {
-            throw new IllegalArgumentException("Byte array must have at least 2 elements");
-        }
-
-         */
-
-        // Combining the bytes using bitwise operations
-        return ((byteArray[0] & 0xFF) << 8) | (byteArray[1] & 0xFF);
-    }
 
 
 

@@ -1,6 +1,7 @@
 import javax.swing.*;
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,8 +19,8 @@ public class FS_Tracker {
             System.out.println("Servidor ativo em : " + InetAddress.getLocalHost().getHostAddress() + " porta " + tracker.getLocalPort());
 
 
-            ConcurrentHashMap<String,List<FileInfo>> node_files = new ConcurrentHashMap<>();
-            ConcurrentHashMap<String,List<String>> file_Locations = new ConcurrentHashMap<>();
+            ConcurrentHashMap<String, List<FileInfo>> node_files = new ConcurrentHashMap<>();
+            ConcurrentHashMap<String, List<String>> file_Locations = new ConcurrentHashMap<>();
 
 
             while (true) {
@@ -28,21 +29,18 @@ public class FS_Tracker {
 
                 System.out.println("Novo nodo conectado: " + node.getInetAddress().getHostAddress());
 
-                NodeHandler nodeHandler = new NodeHandler(node,node_files,file_Locations);
+                NodeHandler nodeHandler = new NodeHandler(node, node_files, file_Locations);
 
                 new Thread(nodeHandler).start();
             }
 
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
-        }
-        finally {
+        } finally {
             if (tracker != null) {
                 try {
                     tracker.close();
-                }
-                catch (IOException e) {
+                } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
@@ -52,20 +50,19 @@ public class FS_Tracker {
 
     // ClientHandler class
     private static class NodeHandler implements Runnable {
-        private final Socket nodeSocket;
-        private ConcurrentHashMap<String,List<FileInfo>> node_files;
-        private ConcurrentHashMap<String,List<String>> file_locations;
 
-        public NodeHandler(Socket socket, ConcurrentHashMap<String,List<FileInfo>> node_files, ConcurrentHashMap<String,List<String>> file_locations)
-        {
+        private final Socket nodeSocket;
+        private ConcurrentHashMap<String, List<FileInfo>> node_files;
+        private ConcurrentHashMap<String, List<String>> file_locations;
+
+        public NodeHandler(Socket socket, ConcurrentHashMap<String, List<FileInfo>> node_files, ConcurrentHashMap<String, List<String>> file_locations) {
             this.nodeSocket = socket;
             this.node_files = node_files;
             this.file_locations = file_locations;
         }
 
 
-        public void run()
-        {
+        public void run() {
 
             try {
 
@@ -74,16 +71,87 @@ public class FS_Tracker {
                 DataOutputStream out = new DataOutputStream(nodeSocket.getOutputStream());
                 DataInputStream in = new DataInputStream(nodeSocket.getInputStream());
 
+                boolean loop = true;
 
-                byte choice = in.readByte();
+                while (loop) {
 
-                byte[] size_bytes = new byte[2];
-                in.readFully(size_bytes,0,2);
-                int size = Requests.twoBytesToInt(size_bytes);
+                    byte choice = in.readByte();
 
 
-                byte[] message = new byte[size];
-                in.readFully(message,0,size);
+                    switch (choice) {
+
+
+                        case 1: {
+
+                            byte number_files = in.readByte();
+
+                            for (byte i = 0; i < number_files; i++) {
+
+                                byte size_name = in.readByte();
+                                byte[] name_bytes = new byte[size_name];
+                                in.readFully(name_bytes, 0, size_name);
+                                String name = new String(name_bytes, StandardCharsets.UTF_8);
+
+                                byte[] blocos_quantidade_bytes = new byte[4];
+                                in.readFully(blocos_quantidade_bytes, 0, 4);
+                                int blocos_quantidade = Serializer.fourBytesToInt(blocos_quantidade_bytes);
+
+                                byte[] size_blocos_disponiveis_bytes = new byte[4];
+                                in.readFully(size_blocos_disponiveis_bytes, 0, 4);
+                                int size_blocos_disponiveis = Serializer.fourBytesToInt(size_blocos_disponiveis_bytes);
+
+                                FileInfo fileInfo;
+                                if (size_blocos_disponiveis == 0) {
+                                    fileInfo = new FileInfo(name, blocos_quantidade);
+                                } else {
+                                    List<Integer> blocos = new ArrayList<>();
+                                    for (int b = 0; b < size_blocos_disponiveis; b++) {
+                                        byte[] bloco_buffer = new byte[4];
+                                        in.readFully(bloco_buffer, 0, 4);
+                                        blocos.add(Serializer.fourBytesToInt(bloco_buffer));
+                                    }
+                                    fileInfo = new FileInfo(name, blocos_quantidade, blocos);
+                                }
+
+                                if (!node_files.containsKey(ip_node)) {
+                                    List<FileInfo> fileInfoList = new ArrayList<>();
+                                    fileInfoList.add(fileInfo);
+                                    node_files.put(ip_node, fileInfoList);
+                                } else {
+                                    node_files.get(ip_node).add(fileInfo);
+                                }
+
+                                if (!file_locations.containsKey(fileInfo.getNome())) {
+                                    List<String> locations = new ArrayList<>();
+                                    locations.add(ip_node);
+                                    file_locations.put(fileInfo.getNome(), locations);
+                                } else {
+                                    file_locations.get(fileInfo.getNome()).add(ip_node);
+                                }
+
+                            }
+
+                            System.out.println(file_locations);
+
+                            break;
+                        }
+
+
+                        case 3:{
+
+                        }
+
+                        case 0: {
+                            System.out.println("Conexão fechada com nodo: " + nodeSocket.getInetAddress().getHostAddress());
+                            loop = false;
+                            break;
+                        }
+
+
+                    }
+
+
+                }
 
 
 
@@ -282,26 +350,14 @@ public class FS_Tracker {
                 */
 
 
-
-            }
-
-            catch (IOException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
-            }
-            /*
-            catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-
-             */
-
-            finally {
+            } finally {
                 try {
                     nodeSocket.shutdownInput();
                     nodeSocket.shutdownOutput();
                     nodeSocket.close();
-                }
-                catch (IOException e) {
+                } catch (IOException e) {
                     e.printStackTrace();
                 }
             }

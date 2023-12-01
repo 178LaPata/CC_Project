@@ -10,16 +10,21 @@ public class FileInfo implements Comparable<FileInfo> {
     private String nome;
     private int blocos_quantidade;
     List<Integer> blocos_disponiveis;
+    boolean complete = false;
 
     public FileInfo(String nome, int blocos_quantidade) {
         this.nome = nome;
         this.blocos_quantidade = blocos_quantidade;
+        complete = true;
     }
 
     public FileInfo(String nome, int blocos_quantidade, List<Integer> blocos_disponiveis) {
         this.nome = nome;
         this.blocos_quantidade = blocos_quantidade;
-        this.blocos_disponiveis = blocos_disponiveis;
+        if (blocos_quantidade == blocos_disponiveis.size())
+            complete = true;
+        else
+            this.blocos_disponiveis = blocos_disponiveis;
     }
 
 
@@ -47,21 +52,25 @@ public class FileInfo implements Comparable<FileInfo> {
     }
 
 
-
-
-    public byte[] fileInfoToBytes(){
+    public byte[] fileInfoToBytes() {
 
         byte size_name = (byte) this.nome.length();
         byte[] name = this.nome.getBytes();
         byte[] blocos_quantidade = Serializer.intToFourBytes(this.blocos_quantidade);
-        byte[] blocos_disponiveis_size = Serializer.intToFourBytes(this.blocos_disponiveis.size());
+        byte[] blocos_disponiveis_size;
         byte[] blocos_disponiveis;
 
-        if (this.blocos_disponiveis.isEmpty())
+        if (this.complete) {
+            blocos_disponiveis_size = Serializer.intToFourBytes(0);
             blocos_disponiveis = new byte[0];
+        }
+
 
         else {
-            ByteBuffer buffer_blocos_disponiveis = ByteBuffer.allocate(this.blocos_disponiveis.size()*4);
+
+            blocos_disponiveis_size = Serializer.intToFourBytes(this.blocos_disponiveis.size());
+
+            ByteBuffer buffer_blocos_disponiveis = ByteBuffer.allocate(this.blocos_disponiveis.size() * 4);
 
             for (Integer i : this.blocos_disponiveis)
                 buffer_blocos_disponiveis.put(Serializer.intToFourBytes(i));
@@ -69,7 +78,7 @@ public class FileInfo implements Comparable<FileInfo> {
             blocos_disponiveis = buffer_blocos_disponiveis.array();
         }
 
-        ByteBuffer buffer = ByteBuffer.allocate(1+name.length+blocos_quantidade.length + blocos_disponiveis.length);
+        ByteBuffer buffer = ByteBuffer.allocate(1 + name.length + 4 + 4 + blocos_disponiveis.length);
 
         buffer.put(size_name);
         buffer.put(name);
@@ -79,13 +88,6 @@ public class FileInfo implements Comparable<FileInfo> {
 
         return buffer.array();
     }
-
-    public FileInfo bytesToFileInfo(){
-
-    }
-
-
-
 
 
 }

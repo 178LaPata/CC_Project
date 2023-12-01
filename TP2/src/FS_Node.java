@@ -22,10 +22,8 @@ public class FS_Node {
             DataInputStream in = new DataInputStream(socket.getInputStream());
 
 
-
             List<Integer> fds = new ArrayList<>();
 
-            fds.toA
 
             String[] register = {"REGISTER", args[0]};
 
@@ -42,10 +40,8 @@ public class FS_Node {
             BufferedReader inStdin = new BufferedReader(new InputStreamReader(System.in));
 
 
-/*
+
             boolean loop = true;
-
-
 
             while(loop){
 
@@ -55,7 +51,19 @@ public class FS_Node {
 
                 switch (option[0]){
 
+                    case "QUIT":{
+                        out.writeByte(0);
+                        out.flush();
+                        loop = false;
+                        break;
+                    }
+
+                    /*
                     case "GET":{
+
+
+                    }
+
 
                         byte choice = 3;
 
@@ -128,13 +136,16 @@ public class FS_Node {
                         break;
                     }
 
+                     */
+
                 }
+
+
 
 
             }
 
 
- */
 
 
             System.out.println("Terminando Programa...");
@@ -142,9 +153,11 @@ public class FS_Node {
             socket.shutdownInput();
             socket.shutdownOutput();
             socket.close();
-        } catch (ConnectException e) {
+        }
+            catch (ConnectException e) {
             System.err.println("Conexão ao servidor falhada!");
-        } catch (IOException e) {
+        }
+            catch (IOException e) {
             e.printStackTrace();
 
 
