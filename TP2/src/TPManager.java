@@ -1,89 +1,100 @@
 import java.io.File;
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-public class Requests {
+public class TPManager {
 
-    public static byte[] create_request(String[] input) {
+    public static byte[] registerMessage(String folder_name) {
 
-        switch (input[0]) {
+        // Ler file names no folder escolhido para partilhar com tracker
+        File folder = new File(folder_name);
+        File[] listOfFiles = folder.listFiles();
 
-            case "REGISTER": {
+        List<byte[]> fileInfos = new ArrayList<>();
+        int size_fileInfos = 0;
 
-                // Ler file names no folder escolhido para partilhar com tracker
-                File folder = new File(input[1]);
-                File[] listOfFiles = folder.listFiles();
+        if (listOfFiles != null) {
 
-                List<byte[]> fileInfos = new ArrayList<>();
-                int size_fileInfos = 0;
+            //byte[] ip = InetAddress.getLocalHost().toString().getBytes();
 
-                if (listOfFiles != null) {
+            for (int i = 0; i < listOfFiles.length; i++) {
 
-                    //byte[] ip = InetAddress.getLocalHost().toString().getBytes();
+                if (listOfFiles[i].isFile()) {
 
-                    for (int i = 0; i < listOfFiles.length; i++) {
+                    File file = listOfFiles[i];
 
-                        if (listOfFiles[i].isFile()) {
+                    long file_size = file.length();
 
-                            File file = listOfFiles[i];
+                    int block_amount = (int) Math.ceil((double) file_size / 500);
 
-                            long file_size = file.length();
+                    FileInfo fileInfo = new FileInfo(file.getName(), block_amount);
 
-                            int block_amount = (int) Math.ceil((double) file_size / 500);
+                    System.out.println(fileInfo);
 
-                            FileInfo fileInfo = new FileInfo(file.getName(), block_amount);
+                    byte[] bytes_fileInfo = fileInfo.fileInfoToBytes();
 
-                            System.out.println(fileInfo);
+                    size_fileInfos += bytes_fileInfo.length;
 
-                            byte[] bytes_fileInfo = fileInfo.fileInfoToBytes();
+                    fileInfos.add(bytes_fileInfo);
+                }
 
-                            size_fileInfos += bytes_fileInfo.length;
-
-                            fileInfos.add(bytes_fileInfo);
-                        }
-
-                    }
+            }
                 /*
                 else if (listOfFiles[i].isDirectory()) {
                     System.out.println("Directory " + listOfFiles[i].getName());
                 }
                  */
-                }
-                else return null;
+        } else return null;
 
-                ByteBuffer byteBuffer = ByteBuffer.allocate(1+1+size_fileInfos);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(1 + 1 + size_fileInfos);
 
-                byte choice = 1;
+        byte choice = 1;
 
-                byteBuffer.put(choice);
-                byteBuffer.put((byte) fileInfos.size());
+        byteBuffer.put(choice);
+        byteBuffer.put((byte) fileInfos.size());
 
-                for (byte[] bytes : fileInfos){
-                    byteBuffer.put(bytes);
-                }
-
-                return byteBuffer.array();
-            }
-
+        for (byte[] bytes : fileInfos) {
+            byteBuffer.put(bytes);
         }
 
+        return byteBuffer.array();
+    }
 
-        return null;
+
+    public static byte[] filesAvailableMessage(Set<String> fileNames) {
+        byte[] numberOfFiles = Serializer.intToTwoBytes(fileNames.size());
+        List<byte[]> name_bytes = new ArrayList<>();
+        int sizeFileNames = 0;
+        for (String s : fileNames) {
+            ByteBuffer buffer = ByteBuffer.allocate(1+s.length());
+            buffer.put((byte)s.length());
+            buffer.put(s.getBytes());
+            byte[] fileName = buffer.array();
+            name_bytes.add(fileName);
+            sizeFileNames += fileName.length;
+        }
+        ByteBuffer byteBuffer = ByteBuffer.allocate(2 + sizeFileNames);
+        byteBuffer.put(numberOfFiles);
+        for (byte[] bytes : name_bytes) {
+            byteBuffer.put(bytes);
+        }
+        return byteBuffer.array();
+    }
+
+
+    public static byte[] getFileMessage(String name){
+        ByteBuffer byteBuffer = ByteBuffer.allocate(1+1+name.length());
+        byteBuffer.put((byte)4);
+        byteBuffer.put((byte)name.length());
+        byteBuffer.put(name.getBytes());
+        return byteBuffer.array();
     }
 
 
 
-
-
-
-
-
-
-
-
 }
+
+
 
         /*
         case "GET": {

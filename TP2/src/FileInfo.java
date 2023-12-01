@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class FileInfo implements Comparable<FileInfo> {
 
@@ -35,7 +36,6 @@ public class FileInfo implements Comparable<FileInfo> {
         else
             return this.nome + ";" + this.blocos_quantidade + ";" + this.blocos_disponiveis;
     }
-
 
     public String getNome() {
         return nome;

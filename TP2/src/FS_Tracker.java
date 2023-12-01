@@ -138,8 +138,94 @@ public class FS_Tracker {
 
 
                         case 3:{
-
+                            byte[] message = TPManager.filesAvailableMessage(file_locations.keySet());
+                            out.write(message);
+                            out.flush();
+                            break;
                         }
+
+
+                        case 4:{
+                            byte size_fileName = in.readByte();
+                            byte[] fileName_bytes = new byte[size_fileName];
+                            in.readFully(fileName_bytes,0,size_fileName);
+                            String fileName = new String(fileName_bytes,StandardCharsets.UTF_8);
+                            List<String> ips = file_locations.get(fileName);
+
+                            if (ips == null){
+                                out.writeByte(0);
+                                out.flush();
+                                break;
+                            }
+
+                            int nodos_totais = ips.size();
+                            int blocos_quantidade;
+                            int size_mensagem = 0;
+                            List<byte[]> nodo_mensagens = new ArrayList<>();
+
+
+                            List<FileInfo> fileInfoList = node_files.get(ips.get(0));
+                            FileInfo fileInfo = null;
+
+                            for (FileInfo f : fileInfoList){
+                                if (f.getNome().equals(fileName)) {
+                                    fileInfo = f;
+                                    break;
+                                }
+                                    
+                            }
+
+                            blocos_quantidade = fileInfo.getBlocos_quantidade();
+
+                            for (String ip : ips){
+
+                                fileInfoList = node_files.get(ip);
+                                for (FileInfo f : fileInfoList)
+                                    if (f.getNome().equals(fileName)) {
+                                        fileInfo = f;
+                                        break;
+                                    }
+
+
+                                if (fileInfo.complete){
+                                    ByteBuffer byteBufferTemp = ByteBuffer.allocate(4+4);
+                                    byte[] ipBytes = InetAddress.getByName(ip).getAddress();
+                                    byteBufferTemp.put(ipBytes);
+                                    byte[] number_blocks = new byte[4];
+                                    byteBufferTemp.put(number_blocks);
+                                    byte[] msg = byteBufferTemp.array();
+                                    nodo_mensagens.add(msg);
+                                    size_mensagem += msg.length;
+                                }
+                                else{
+                                    List<Integer> fds = fileInfo.blocos_disponiveis;
+                                    ByteBuffer byteBufferTemp = ByteBuffer.allocate(4+4+4*fds.size());
+                                    byte[] ipBytes = InetAddress.getByName(ip).getAddress();
+                                    byteBufferTemp.put(ipBytes);
+                                    byteBufferTemp.put(Serializer.intToFourBytes(fds.size()));
+                                    for (int a : fds){
+                                        byteBufferTemp.put(Serializer.intToFourBytes(a));
+                                    }
+                                    byte[] msg = byteBufferTemp.array();
+                                    size_mensagem += msg.length;
+                                    nodo_mensagens.add(msg);
+                                }
+
+                            }
+
+                            ByteBuffer byteBuffer = ByteBuffer.allocate(2+4+size_mensagem);
+
+                            byteBuffer.put(Serializer.intToTwoBytes(nodos_totais));
+                            byteBuffer.put(Serializer.intToFourBytes(blocos_quantidade));
+                            for (byte[] bytes : nodo_mensagens)
+                                byteBuffer.put(bytes);
+
+                            out.write(byteBuffer.array());
+                            out.flush();
+
+                            break;
+                        }
+
 
                         case 0: {
                             System.out.println("Conexão fechada com nodo: " + nodeSocket.getInetAddress().getHostAddress());

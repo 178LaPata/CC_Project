@@ -2,7 +2,6 @@ import java.io.*;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -25,9 +24,7 @@ public class FS_Node {
             List<Integer> fds = new ArrayList<>();
 
 
-            String[] register = {"REGISTER", args[0]};
-
-            byte[] register_message = Requests.create_request(register);
+            byte[] register_message = TPManager.registerMessage(args[0]);
 
             //System.out.println(new String(Requests.create_request(fds),StandardCharsets.UTF_8));
 
@@ -51,10 +48,81 @@ public class FS_Node {
 
                 switch (option[0]){
 
+                    case "GET":{
+                        out.write(TPManager.getFileMessage(option[1]));
+                        out.flush();
+
+                        byte[] nodosTotaisBytes = new byte[2];
+                        in.readFully(nodosTotaisBytes,0,2);
+                        int nodosTotais = Serializer.twoBytesToInt(nodosTotaisBytes);
+
+                        if (nodosTotais == 0){
+                            System.out.println("Ficheiro não existe!");
+                            break;
+                        }
+
+                        byte[] blocosTotaisBytes = new byte[4];
+                        in.readFully(blocosTotaisBytes,0,4);
+                        int blocosTotais = Serializer.fourBytesToInt(blocosTotaisBytes);
+
+                        for (int i = 0; i<nodosTotais; i++){
+
+                            byte[] ipBytes = new byte[4];
+                            in.readFully(ipBytes,0,4);
+                            String ip = InetAddress.getByAddress(ipBytes).getHostAddress();
+
+                            System.out.println(ip);
+
+                            byte[] qtBlocosDisponiveisBytes = new byte[4];
+                            in.readFully(qtBlocosDisponiveisBytes,0,4);
+                            int qtBlocosDisponiveis = Serializer.fourBytesToInt(qtBlocosDisponiveisBytes);
+
+                            if (qtBlocosDisponiveis == 0){
+                                System.out.println("tem todos os blocos");
+                            }
+                            else {
+                                for (int b = 0; i<qtBlocosDisponiveis; i++){
+                                    byte[] blocoIDBytes = new byte[4];
+                                    in.readFully(blocoIDBytes,0,4);
+                                    int bloco = Serializer.fourBytesToInt(blocoIDBytes);
+                                    System.out.println("tem o bloco " + bloco);
+                                }
+
+                            }
+
+                        }
+
+
+
+                        break;
+                    }
+
                     case "QUIT":{
                         out.writeByte(0);
                         out.flush();
                         loop = false;
+                        break;
+                    }
+
+                    case "FILES":{
+                        out.writeByte(3);
+                        out.flush();
+                        byte[] numberFiles_bytes = new byte[2];
+                        in.readFully(numberFiles_bytes,0,2);
+                        int numberFiles = Serializer.twoBytesToInt(numberFiles_bytes);
+                        if (numberFiles == 0){
+                            System.out.println("Não existem ficheiros disponíveis para transferência");
+                            break;
+                        }
+                        List<String> namesList = new ArrayList<>();
+                        for (int i = 0; i<numberFiles; i++){
+                            int nameSize = in.readByte();
+                            byte[] name_byte = new byte[nameSize];
+                            in.readFully(name_byte,0,nameSize);
+                            String name = new String(name_byte, StandardCharsets.UTF_8);
+                            namesList.add(name);
+                        }
+                        System.out.println(namesList);
                         break;
                     }
 
