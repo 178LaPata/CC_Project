@@ -21,6 +21,7 @@ public class FS_Tracker {
 
             ConcurrentHashMap<String, List<FileInfo>> node_files = new ConcurrentHashMap<>();
             ConcurrentHashMap<String, List<String>> file_Locations = new ConcurrentHashMap<>();
+            ConcurrentHashMap<String, List<byte[]>> file_hash = new ConcurrentHashMap<>();
 
 
             while (true) {
@@ -29,7 +30,7 @@ public class FS_Tracker {
 
                 System.out.println("Novo nodo conectado: " + node.getInetAddress().getHostAddress());
 
-                NodeHandler nodeHandler = new NodeHandler(node, node_files, file_Locations);
+                NodeHandler nodeHandler = new NodeHandler(node, node_files, file_Locations, file_hash);
 
                 new Thread(nodeHandler).start();
             }
@@ -54,11 +55,14 @@ public class FS_Tracker {
         private final Socket nodeSocket;
         private ConcurrentHashMap<String, List<FileInfo>> node_files;
         private ConcurrentHashMap<String, List<String>> file_locations;
+        private ConcurrentHashMap<String, List<byte[]>> file_hash;
 
-        public NodeHandler(Socket socket, ConcurrentHashMap<String, List<FileInfo>> node_files, ConcurrentHashMap<String, List<String>> file_locations) {
+
+        public NodeHandler(Socket socket, ConcurrentHashMap<String, List<FileInfo>> node_files, ConcurrentHashMap<String, List<String>> file_locations, ConcurrentHashMap<String, List<byte[]>> file_hash) {
             this.nodeSocket = socket;
             this.node_files = node_files;
             this.file_locations = file_locations;
+            this.file_hash = file_hash;
         }
 
 
@@ -101,8 +105,11 @@ public class FS_Tracker {
                                 int size_blocos_disponiveis = Serializer.fourBytesToInt(size_blocos_disponiveis_bytes);
 
                                 FileInfo fileInfo;
+                                byte[] sha1Encoding = null;
                                 if (size_blocos_disponiveis == 0) {
                                     fileInfo = new FileInfo(name, blocos_quantidade);
+                                    sha1Encoding = new byte[20*blocos_quantidade];
+                                    in.readFully(sha1Encoding,0,20*blocos_quantidade);
                                 } else {
                                     List<Integer> blocos = new ArrayList<>();
                                     for (int b = 0; b < size_blocos_disponiveis; b++) {
@@ -129,9 +136,24 @@ public class FS_Tracker {
                                     file_locations.get(fileInfo.getNome()).add(ip_node);
                                 }
 
+                                if (sha1Encoding != null){
+                                    if (!file_hash.containsKey(name)){
+                                        List<byte[]> tempList = new ArrayList<>();
+                                        for (int id = 0; id<blocos_quantidade; id++){
+                                            byte[] tempByte = new byte[20];
+                                            System.arraycopy(tempByte,0,sha1Encoding,id*20,20);
+                                            tempList.add(tempByte);
+                                        }
+                                        file_hash.put(name,tempList);
+                                    }
+                                }
+
+
                             }
 
-                            System.out.println(file_locations);
+                            System.out.println(file_hash);
+
+
 
                             break;
                         }
@@ -164,22 +186,13 @@ public class FS_Tracker {
                             List<byte[]> nodo_mensagens = new ArrayList<>();
 
 
-                            List<FileInfo> fileInfoList = node_files.get(ips.get(0));
-                            FileInfo fileInfo = null;
 
-                            for (FileInfo f : fileInfoList){
-                                if (f.getNome().equals(fileName)) {
-                                    fileInfo = f;
-                                    break;
-                                }
-                                    
-                            }
-
-                            blocos_quantidade = fileInfo.getBlocos_quantidade();
+                            blocos_quantidade = file_hash.get(fileName).size();
 
                             for (String ip : ips){
 
-                                fileInfoList = node_files.get(ip);
+                                List<FileInfo> fileInfoList = node_files.get(ip);
+                                FileInfo fileInfo = null;
                                 for (FileInfo f : fileInfoList)
                                     if (f.getNome().equals(fileName)) {
                                         fileInfo = f;

@@ -1,10 +1,15 @@
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class TPManager {
 
-    public static byte[] registerMessage(String folder_name) {
+    public static byte[] registerMessage(String folder_name) throws IOException, NoSuchAlgorithmException {
 
         // Ler file names no folder escolhido para partilhar com tracker
         File folder = new File(folder_name);
@@ -33,9 +38,18 @@ public class TPManager {
 
                     byte[] bytes_fileInfo = fileInfo.fileInfoToBytes();
 
-                    size_fileInfos += bytes_fileInfo.length;
+                    byte[] sha1Encoding = calculateSHA1(file,500);
 
-                    fileInfos.add(bytes_fileInfo);
+                    ByteBuffer byteBuffer = ByteBuffer.allocate(bytes_fileInfo.length+sha1Encoding.length);
+
+                    byteBuffer.put(bytes_fileInfo);
+                    byteBuffer.put(sha1Encoding);
+
+                    byte[] bytes = byteBuffer.array();
+
+                    size_fileInfos += bytes.length;
+
+                    fileInfos.add(bytes);
                 }
 
             }
@@ -56,6 +70,8 @@ public class TPManager {
         for (byte[] bytes : fileInfos) {
             byteBuffer.put(bytes);
         }
+
+        System.out.println(Arrays.toString(byteBuffer.array()));
 
         return byteBuffer.array();
     }
@@ -89,6 +105,29 @@ public class TPManager {
         byteBuffer.put(name.getBytes());
         return byteBuffer.array();
     }
+
+
+
+
+
+
+    private static byte[] calculateSHA1(File file, int chunkSize) throws IOException, NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-1");
+
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] buffer = new byte[chunkSize];
+            int bytesRead;
+
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                digest.update(buffer, 0, bytesRead);
+            }
+        }
+
+        return digest.digest();
+    }
+
+
+
 
 
 

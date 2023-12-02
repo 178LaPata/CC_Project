@@ -3,6 +3,7 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class FS_Node {
@@ -61,6 +62,8 @@ public class FS_Node {
                             break;
                         }
 
+
+
                         byte[] blocosTotaisBytes = new byte[4];
                         in.readFully(blocosTotaisBytes,0,4);
                         int blocosTotais = Serializer.fourBytesToInt(blocosTotaisBytes);
@@ -81,7 +84,7 @@ public class FS_Node {
                                 System.out.println("tem todos os blocos");
                             }
                             else {
-                                for (int b = 0; i<qtBlocosDisponiveis; i++){
+                                for (int b = 0; b<qtBlocosDisponiveis; b++){
                                     byte[] blocoIDBytes = new byte[4];
                                     in.readFully(blocoIDBytes,0,4);
                                     int bloco = Serializer.fourBytesToInt(blocoIDBytes);
@@ -229,6 +232,8 @@ public class FS_Node {
             e.printStackTrace();
 
 
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
         }
 
     }
