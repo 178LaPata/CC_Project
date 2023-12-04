@@ -9,11 +9,9 @@ import java.util.*;
 
 public class TPManager {
 
-    public static byte[] registerMessage(String folder_name) throws IOException, NoSuchAlgorithmException {
+    public static byte[] registerMessage(File[] listOfFiles) throws IOException, NoSuchAlgorithmException {
 
-        // Ler file names no folder escolhido para partilhar com tracker
-        File folder = new File(folder_name);
-        File[] listOfFiles = folder.listFiles();
+
 
         List<byte[]> fileInfos = new ArrayList<>();
         int size_fileInfos = 0;
