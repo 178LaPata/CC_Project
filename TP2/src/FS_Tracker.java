@@ -81,13 +81,15 @@ public class FS_Tracker {
 
                     byte choice = in.readByte();
 
-
                     switch (choice) {
 
 
                         case 1: {
 
                             byte number_files = in.readByte();
+
+                            System.out.println(choice);
+
 
                             for (byte i = 0; i < number_files; i++) {
 
@@ -148,15 +150,43 @@ public class FS_Tracker {
                                     }
                                 }
 
+                                System.out.println(node_files);
 
                             }
-
-                            System.out.println(file_hash);
 
 
 
                             break;
                         }
+
+
+                        //UPDATE
+                            //read tpmanager.getupdatemesage
+                        case 2: {
+                            byte sizeName = in.readByte();
+                            byte[] nameBytes = new byte[sizeName];
+                            in.readFully(nameBytes,0,sizeName);
+                            int bloco = in.readInt();
+
+                            //add location to file_locations if it doesnt exist already
+                            //assume key exists
+                            String fileName = new String(nameBytes,StandardCharsets.UTF_8);
+                            List<String> locations = file_locations.get(fileName);
+                            if (!locations.contains(ip_node))
+                                locations.add(ip_node);
+
+
+                            if (node_files.get(ip_node)==null){
+                                List<FileInfo> fileInfoList = new ArrayList<>();
+                                FileInfo fileInfo = new FileInfo(fileName,1);
+                                node_files.put(ip_node,fileInfoList);
+                            }
+
+
+
+                            ConcurrentHashMap<String, List<FileInfo>> node_files = new ConcurrentHashMap<>();
+                        }
+
 
 
                         case 3:{
@@ -167,6 +197,7 @@ public class FS_Tracker {
                         }
 
 
+                        //GET file
                         case 4:{
                             byte size_fileName = in.readByte();
                             byte[] fileName_bytes = new byte[size_fileName];
@@ -182,12 +213,20 @@ public class FS_Tracker {
 
                             int nodos_totais = ips.size();
                             int blocos_quantidade;
+                            List<byte[]> hashes = new ArrayList<>();
                             int size_mensagem = 0;
                             List<byte[]> nodo_mensagens = new ArrayList<>();
 
 
 
                             blocos_quantidade = file_hash.get(fileName).size();
+
+                            //Go to filehash and copy each byte[] to hashes
+                            for (int i = 0; i<blocos_quantidade; i++){
+                                byte[] tempByte = new byte[20];
+                                System.arraycopy(tempByte,0,file_hash.get(fileName).get(i),0,20);
+                                hashes.add(tempByte);
+                            }
 
                             for (String ip : ips){
 
@@ -226,10 +265,13 @@ public class FS_Tracker {
 
                             }
 
-                            ByteBuffer byteBuffer = ByteBuffer.allocate(2+4+size_mensagem);
+                            ByteBuffer byteBuffer = ByteBuffer.allocate(2+4+hashes.size()*20+size_mensagem);
 
                             byteBuffer.put(Serializer.intToTwoBytes(nodos_totais));
                             byteBuffer.put(Serializer.intToFourBytes(blocos_quantidade));
+                            for (byte[] bytes : hashes){
+                                byteBuffer.put(bytes);
+                            }
                             for (byte[] bytes : nodo_mensagens)
                                 byteBuffer.put(bytes);
 
@@ -239,6 +281,18 @@ public class FS_Tracker {
                             break;
                         }
 
+                        case 5: {
+                            byte size_fileName = in.readByte();
+                            byte[] fileName_bytes = new byte[size_fileName];
+                            in.readFully(fileName_bytes,0,size_fileName);
+                            String fileName = new String(fileName_bytes,StandardCharsets.UTF_8);
+                            byte[] blocoBytes = new byte[4];
+                            in.readFully(blocoBytes, 0, 4);
+                            int bloco = Serializer.fourBytesToInt(blocoBytes);
+                            out.write(file_hash.get(fileName).get(bloco));
+                            out.flush();
+                            break;
+                        }
 
                         case 0: {
                             System.out.println("Conexão fechada com nodo: " + nodeSocket.getInetAddress().getHostAddress());
@@ -461,6 +515,24 @@ public class FS_Tracker {
                 }
             }
         }
+    }
+
+
+
+
+    public static String generateRandomIp() {
+        Random random = new Random();
+        StringBuilder ipAddress = new StringBuilder();
+
+        for (int i = 0; i < 4; i++) {
+            ipAddress.append(random.nextInt(256));
+
+            if (i < 3) {
+                ipAddress.append(".");
+            }
+        }
+
+        return ipAddress.toString();
     }
 
 }

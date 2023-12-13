@@ -1,14 +1,13 @@
-import org.w3c.dom.Node;
-import org.w3c.dom.html.HTMLParagraphElement;
-
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
+
 
 public class FS_Node {
 
@@ -33,7 +32,6 @@ public class FS_Node {
 
             byte[] register_message = TPManager.registerMessage(listOfFiles);
 
-            //System.out.println(new String(Requests.create_request(fds),StandardCharsets.UTF_8));
 
             if (register_message != null) {
                 out.write(register_message);
@@ -41,8 +39,15 @@ public class FS_Node {
             }
 
 
-            UDPGetRequestsThread UDPGetRequestsThread = new UDPGetRequestsThread(9090, listOfFiles);
-            UDPGetRequestsThread.start();
+            List<BlockToSend> blocksToSend = Collections.synchronizedList(new ArrayList<>());
+            ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive = new ConcurrentHashMap<>();
+
+
+            DatagramSocket socketUDP = new DatagramSocket(9090);
+
+            UDPListener udpListener = new UDPListener(socketUDP, listOfFiles, blocksToSend, blocksToReceive);
+            new Thread(udpListener).start();
+
 
             BufferedReader inStdin = new BufferedReader(new InputStreamReader(System.in));
 
@@ -76,13 +81,32 @@ public class FS_Node {
                         int blocosTotais = Serializer.fourBytesToInt(blocosTotaisBytes);
 
 
-                        Map<Integer, Set<String>> blockAvailability = new HashMap<>();
-                        Set<String> ipsNodes = new HashSet<>();
-
                         for (int i = 0; i < blocosTotais; i++) {
-                            blockAvailability.put(i, new HashSet<>());
+                            byte[] hash = new byte[20];
+                            in.readFully(hash, 0, 20);
+                            blocksToReceive.put(new BlockToReceive(option[1], i), hash);
                         }
 
+                        //The rest of the message is the list of nodes
+                        //Each node is represented by 4 bytes for the IP and 4 bytes for the number of blocks available
+                        //If the number of blocks available is 0, the node has all the blocks
+                        //If the number of blocks available is not 0, the next 4 bytes represent the block ID
+                        //The number of blocks available is always followed by the block IDs
+
+                        //I want to ask each node for the blocks it has
+                        //I should ask for the blocks which are less common amongst the nodes first
+                        //I should ask the nodes which are faster first
+                        //I should ask the nodes which are more reliable first
+
+
+                        //Concurrent Set of IPS
+                        ConcurrentSkipListSet<String> ipsNodes = new ConcurrentSkipListSet<>();
+
+                        ConcurrentHashMap<Integer, List<String>> nodesForBlocks = new ConcurrentHashMap<>();
+
+                        for (int i = 0; i < blocosTotais; i++) {
+                            nodesForBlocks.put(i, new ArrayList<>());
+                        }
 
                         for (int i = 0; i < nodosTotais; i++) {
 
@@ -90,27 +114,102 @@ public class FS_Node {
                             in.readFully(ipBytes, 0, 4);
                             String ip = InetAddress.getByAddress(ipBytes).getHostAddress();
 
-                            System.out.println(ip);
 
                             byte[] qtBlocosDisponiveisBytes = new byte[4];
                             in.readFully(qtBlocosDisponiveisBytes, 0, 4);
                             int qtBlocosDisponiveis = Serializer.fourBytesToInt(qtBlocosDisponiveisBytes);
 
+
                             ipsNodes.add(ip);
                             if (qtBlocosDisponiveis == 0) {
                                 for (int b = 0; b < blocosTotais; b++) {
-                                    blockAvailability.get(b).add(ip);
+                                    //blockAvailability.get(b).add(ip);
+                                    nodesForBlocks.get(b).add(ip);
                                 }
                             } else {
                                 for (int b = 0; b < qtBlocosDisponiveis; b++) {
                                     byte[] blocoIDBytes = new byte[4];
                                     in.readFully(blocoIDBytes, 0, 4);
                                     int bloco = Serializer.fourBytesToInt(blocoIDBytes);
-                                    blockAvailability.get(bloco).add(ip);
+                                    //blockAvailability.get(bloco).add(ip);
+                                    nodesForBlocks.get(bloco).add(ip);
                                 }
                             }
                         }
 
+
+                        //Concurrent Set of BlockPriority
+                        ConcurrentSkipListSet<BlockPriority> blockPrioritySet = new ConcurrentSkipListSet<>(Comparator.comparingInt(bp -> nodesForBlocks.get(bp.id).size()));
+                        blockPrioritySet.addAll(nodesForBlocks.keySet().stream().map(BlockPriority::new).collect(Collectors.toList()));
+
+                        //Transfer blocks by order of priority
+
+                        //open file with name option[1] and create it if it doesnt exist
+                        File file = new File(folder, option[1]);
+                        if (!file.exists()) {
+                            file.createNewFile();
+                        }
+
+
+                        //Thread executor = Executors.newFixedThreadPool(10);
+                        ExecutorService executor = Executors.newFixedThreadPool(nodosTotais);
+
+
+                        //run UDPTransferThread for each block until all blocks are transferred
+                        for (int i = 0; i < blocosTotais; i++) {
+                            executor.execute(new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive));
+                        }
+
+                        //wait for all threads to finish
+                        executor.shutdown();
+
+
+                        /*
+                        Map<Integer, Set<String>> blockAvailability = new HashMap<>();
+                        Set<String> ipsNodes = new HashSet<>();
+
+
+
+                        for (int i = 0; i < blocosTotais; i++) {
+                            blockAvailability.put(i, new HashSet<>());
+                        }
+
+
+                        ConcurrentHashMap<Integer, List<String>> nodesForBlocks = new ConcurrentHashMap<>();
+                        for (int i = 0; i < blocosTotais; i++) {
+                            nodesForBlocks.put(i, new ArrayList<>());
+                        }
+
+                        for (int i = 0; i < nodosTotais; i++) {
+
+                            byte[] ipBytes = new byte[4];
+                            in.readFully(ipBytes, 0, 4);
+                            String ip = InetAddress.getByAddress(ipBytes).getHostAddress();
+
+
+                            byte[] qtBlocosDisponiveisBytes = new byte[4];
+                            in.readFully(qtBlocosDisponiveisBytes, 0, 4);
+                            int qtBlocosDisponiveis = Serializer.fourBytesToInt(qtBlocosDisponiveisBytes);
+
+
+                            //ipsNodes.add(ip);
+                            if (qtBlocosDisponiveis == 0) {
+                                for (int b = 0; b < blocosTotais; b++) {
+                                    //blockAvailability.get(b).add(ip);
+                                    nodesForBlocks.get(b).add(ip);
+                                }
+                            } else {
+                                for (int b = 0; b < qtBlocosDisponiveis; b++) {
+                                    byte[] blocoIDBytes = new byte[4];
+                                    in.readFully(blocoIDBytes, 0, 4);
+                                    int bloco = Serializer.fourBytesToInt(blocoIDBytes);
+                                    //blockAvailability.get(bloco).add(ip);
+                                    nodesForBlocks.get(bloco).add(ip);
+                                }
+                            }
+                        }
+
+                        /*
                         List<BlockPriority> blockPriorityList = blockAvailability
                                 .keySet()
                                 .stream()
@@ -144,10 +243,21 @@ public class FS_Node {
                             }
                         }
 
-                        File file = new File(folder, option[1]);
 
-                        UDPTransferThread udpTransferThread = new UDPTransferThread(5001, blockAvailability, blockPrioritySet, nodePrioritySet, file);
 
+                        File foldertst = new File("node2/");
+                        File file = new File(foldertst, option[1]);
+
+                        // UDPTransferThread udpTransferThread = new UDPTransferThread(5001, blockAvailability, blockPrioritySet, nodePrioritySet, file, out, in);
+
+                        UDPTransferThread udpTransferThread = new UDPTransferThread(5001, file, nodesForBlocks);
+
+                        Thread thread = new Thread(udpTransferThread);
+
+                        thread.start();
+                        thread.join();
+
+                        /*
                         for (int i = 0; i < nodosTotais; i++) {
                             new Thread(udpTransferThread).start();
                         }
@@ -156,9 +266,12 @@ public class FS_Node {
                             new Thread(udpTransferThread).join();
                         }
 
+                         */
+
 
                         break;
                     }
+
 
                     case "QUIT": {
                         out.writeByte(0);
@@ -189,85 +302,6 @@ public class FS_Node {
                         break;
                     }
 
-                    /*
-                    case "GET":{
-
-
-                    }
-
-
-                        byte choice = 3;
-
-                        byte[] combined = new byte[option[1].length() + 1];
-                    
-                        ByteBuffer buffer_message = ByteBuffer.wrap(combined);
-                        buffer_message.put(choice);
-                        buffer_message.put(option[1].getBytes());
-                        byte[] message = buffer_message.array();
-                        out.writeInt(message.length);
-                        out.write(message);
-                        out.flush();
-
-                        int size = in.readInt();
-                        
-
-
-                        if (size != 0) {
-                            
-                            Map<String,FileInfo> fileInfoMap = new HashMap<>();
-
-
-                            for (int i = 0; i<size; i++){
-
-                                int length = in.readInt();
-
-                                byte[] received = new byte[length];
-                                in.readFully(received,0,length);
-                                FileInfo fileInfo = FileInfo.deserialize(received);
-
-                                fileInfoMap.put(in.readUTF(),fileInfo);
-                            }
-                            
-                            System.out.println(fileInfoMap);
-
-
-                        }
-
-
-                        break;
-
-                    }
-
-
-
-                    case "FILES":{
-
-                        out.writeInt(1);
-                        out.writeByte(2);
-                        out.flush();
-
-                        int length = in.readInt();
-
-                        byte[] received = new byte[length];
-                        in.readFully(received,0,length);
-
-                        String answer = new String(received, StandardCharsets.UTF_8);
-
-                        System.out.println(answer);
-
-                        break;
-                    }
-
-                    case "QUIT":{
-                        out.writeInt(1);
-                        out.writeByte(0);
-                        out.flush();
-                        loop = false;
-
-                        break;
-                    }
-
-                     */
 
                 }
 
@@ -288,26 +322,126 @@ public class FS_Node {
 
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
         }
 
     }
 
 
-    private static class UDPGetRequestsThread extends Thread {
+    private static class UDPRequestBlock extends Thread {
+
+        private DatagramSocket socket;
+        private String fileName;
+        private ConcurrentSkipListSet<BlockPriority> blockPrioritySet;
+        private ConcurrentSkipListSet<String> ipsNodes;
+        ConcurrentHashMap<Integer, List<String>> nodesForBlocks;
+        ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
+
+
+        public UDPRequestBlock(DatagramSocket socket, String fileName, ConcurrentSkipListSet<BlockPriority> blockPrioritySet, ConcurrentSkipListSet<String> ipsNodes, ConcurrentHashMap<Integer, List<String>> nodesForBlocks, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive) {
+            try {
+                this.socket = socket;
+                this.fileName = fileName;
+                this.blockPrioritySet = blockPrioritySet;
+                this.ipsNodes = ipsNodes;
+                this.nodesForBlocks = nodesForBlocks;
+                this.blocksToReceive = blocksToReceive;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+
+        @Override
+        public void run() {
+
+            while (!blockPrioritySet.isEmpty()) {
+
+                for (BlockPriority blockPriority : blockPrioritySet) {
+
+                    if (blockPriority.available) {
+
+                        blockPriority.available = false;
+
+                        //Create datagram to request for block
+                        byte[] name = fileName.getBytes();
+                        byte size_name = (byte) name.length;
+                        byte[] blockID = Serializer.intToFourBytes(blockPriority.id);
+                        ByteBuffer msg_buffer = ByteBuffer.allocate(2 + name.length + 4);
+                        msg_buffer.put((byte) 0);
+                        msg_buffer.put(size_name);
+                        msg_buffer.put(name);
+                        msg_buffer.put(blockID);
+                        byte[] msg = msg_buffer.array();
+
+
+                        List<String> ips = nodesForBlocks.get(blockPriority.id);
+
+                        for (String ip : ips) {
+
+                            if (ips.contains(ip)) {
+
+                                ipsNodes.remove(ip);
+
+                                BlockToReceive blockToReceive = new BlockToReceive(fileName, blockPriority.id);
+
+                                try {
+
+                                    DatagramPacket requestPacket = new DatagramPacket(msg, msg.length, InetAddress.getByName(ip), 9090);
+
+                                    int attempt;
+                                    for (attempt = 0; attempt < 3; attempt++) {
+                                        socket.send(requestPacket);
+                                        Thread.sleep(5000);
+                                        if (blocksToReceive.get(blockToReceive) == null) {
+                                            blockPrioritySet.remove(blockPriority);
+                                            break;
+                                        }
+                                    }
+                                    if (attempt == 3)
+                                        blockPriority.available = true;
+
+                                } catch (IOException | InterruptedException ex) {
+                                    throw new RuntimeException(ex);
+                                }
+
+
+                                ipsNodes.add(ip);
+                                break;
+                            }
+                        }
+
+                    }
+
+
+                }
+
+
+            }
+
+
+        }
+
+
+    }
+
+
+    public static class UDPListener extends Thread {
 
         private DatagramSocket socket;
         private byte[] buffer;
         private File[] listOfFiles;
+        List<BlockToSend> blocksToSend;
+        ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
 
-        public UDPGetRequestsThread(int port, File[] listOfFiles) {
+        public UDPListener(DatagramSocket socket, File[] listOfFiles, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive) {
             try {
                 // Create a DatagramSocket to listen on the specified port
-                this.socket = new DatagramSocket(port);
+                this.socket = socket;
                 // Set a buffer for receiving data
                 this.buffer = new byte[1024];
                 this.listOfFiles = listOfFiles;
+                this.blocksToSend = blocksToSend;
+                this.blocksToReceive = blocksToReceive;
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -323,85 +457,33 @@ public class FS_Node {
                     // Receive data from the socket
                     socket.receive(packet);
 
-                    byte[] receivedData = packet.getData();
-
-                    InetAddress senderAddress = packet.getAddress();
-                    int senderPort = packet.getPort();
-
-
-                    int size_name = receivedData[0];
-                    String name = new String(receivedData, 1, size_name);
-                    int blockID = Serializer.fourBytesToInt(Arrays.copyOfRange(receivedData, 1 + size_name, 1 + size_name + 4));
-
-                    try {
-                        // Iterate through the list of files
-                        for (File file : listOfFiles) {
-                            // Check if the current file is the right name
-                            if (file.getName().equals(name)) {
-                                // Open the file using RandomAccessFile
-                                try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r")) {
-                                    // Set the file pointer to the desired offset
-                                    randomAccessFile.seek(blockID * 500);
-                                    // Read 500 bytes from the current offset
-                                    byte[] data = new byte[500];
-                                    randomAccessFile.read(data);
-
-                                    ByteBuffer msg_buffer = ByteBuffer.allocate(4 + data.length);
-                                    msg_buffer.put(Serializer.intToFourBytes(blockID));
-                                    msg_buffer.put(data);
-                                    byte[] msg = msg_buffer.array();
-
-                                    DatagramPacket responsePacket = new DatagramPacket(msg, msg.length, senderAddress, senderPort);
-                                    socket.send(responsePacket);
-                                    break;
-                                } catch (IOException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-                        }
-                        break;
-                    } catch (RuntimeException e) {
-                        throw new RuntimeException(e);
-                    }
-
+                    new Thread(new UDPDataHandler(socket, packet, listOfFiles, blocksToSend, blocksToReceive)).start();
                 }
-
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                // Close the socket when the thread is interrupted or finished
-                if (socket != null && !socket.isClosed()) {
-                    socket.close();
-                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
 
     }
 
-
-    private static class UDPTransferThread extends Thread {
+    //Create UPDRequestHandler class
+    public static class UDPDataHandler implements Runnable {
 
         private DatagramSocket socket;
-        private byte[] buffer;
-        private Map<Integer, Set<String>> blockAvailability;
-        private ConcurrentSkipListSet<BlockPriority> blockPrioritySet;
-        private ConcurrentSkipListSet<NodePriority> nodePrioritySet;
-        private File file;
+        private DatagramPacket packet;
+        private File[] listOfFiles;
+        List<BlockToSend> blocksToSend;
+        ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
+        DataOutputStream out;
 
-        public UDPTransferThread(int port, Map<Integer, Set<String>> blockAvailability, ConcurrentSkipListSet<BlockPriority> blockPrioritySet, ConcurrentSkipListSet<NodePriority> nodePrioritySet, File file) {
-            try {
-                // Create a DatagramSocket to listen on the specified port
-                this.socket = new DatagramSocket(port);
-                // Set a buffer for receiving data
-                this.buffer = new byte[1024];
-                this.blockAvailability = blockAvailability;
-                this.blockPrioritySet = blockPrioritySet;
-                this.nodePrioritySet = nodePrioritySet;
-                this.file = file;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+
+        public UDPDataHandler(DatagramSocket socket, DatagramPacket packet, File[] listOfFiles, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, DataOutputStream out) {
+            this.socket = socket;
+            this.packet = packet;
+            this.listOfFiles = listOfFiles;
+            this.blocksToSend = blocksToSend;
+            this.blocksToReceive = blocksToReceive;
+            this.out = out;
         }
 
         @Override
@@ -409,98 +491,158 @@ public class FS_Node {
 
             try {
 
+                byte[] receivedData = packet.getData();
+                InetAddress senderAddress = packet.getAddress();
+                int senderPort = packet.getPort();
 
-                while (!blockPrioritySet.isEmpty()) {
+                int size_name = receivedData[1];
+                String name = new String(receivedData, 2, size_name);
+                int blockID = Serializer.fourBytesToInt(Arrays.copyOfRange(receivedData, 2 + size_name, 2 + size_name + 4));
 
+                File file = null;
+                for (File f : listOfFiles) {
+                    // Check if the current file is the right name
+                    if (f.getName().equals(name)) {
+                        file = f;
+                        break;
+                    }
+                }
 
-                    Iterator<BlockPriority> iteratorBlockPrioritySet = blockPrioritySet.iterator();
-
-                    while (iteratorBlockPrioritySet.hasNext()) {
-
-                        BlockPriority block = iteratorBlockPrioritySet.next();
-
-                        if (block.available == true) {
-
-                            Set<String> blockIps = blockAvailability.get(block.id);
-
-                            Iterator<NodePriority> nodePriorityIterator = nodePrioritySet.iterator();
-
-                            while (nodePriorityIterator.hasNext()) {
-
-                                NodePriority nodePriority = nodePriorityIterator.next();
-
-                                if (blockIps.contains(nodePriority.ip) && nodePriority.available) {
-
-                                    block.available = false;
-                                    nodePriority.available = false;
-
-                                    RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
-
-                                    byte[] name = file.getName().getBytes();
-                                    byte size_name = (byte) name.length;
-                                    byte[] blockID = Serializer.intToFourBytes(block.id);
-                                    ByteBuffer msg_buffer = ByteBuffer.allocate(1 + name.length + 4);
-                                    msg_buffer.put(size_name);
-                                    msg_buffer.put(name);
-                                    msg_buffer.put(blockID);
-                                    byte[] msg = msg_buffer.array();
-
-                                    DatagramPacket requestPacket = new DatagramPacket(msg, msg.length, InetAddress.getByName(nodePriority.ip), 9090);
-                                    DatagramPacket dataPacket = new DatagramPacket(buffer, buffer.length);
+                if (file == null)
+                    return;
 
 
-                                    int attempt = 0;
+                if (receivedData[0] == 0) {
 
-                                    do {
-                                        try {
-                                            // Send the DatagramPacket
-                                            socket.send(requestPacket);
+                    try {
 
-                                            // Set a timeout on the socket for receiving the response
-                                            socket.setSoTimeout(5000);
+                        BlockToSend blockToSend = new BlockToSend(name, blockID, senderAddress.getHostAddress());
 
-                                            // Attempt to receive a response within the specified timeout
-                                            socket.receive(requestPacket);
+                        if (!blocksToSend.contains(blockToSend))
+                            blocksToSend.add(blockToSend);
 
-                                            // Process the received data
-                                            socket.receive(dataPacket);
+                        // Open the file using RandomAccessFile
+                        try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "r")) {
+                            // Set the file pointer to the desired offset
+                            randomAccessFile.seek(blockID * 500);
+                            // Read 500 bytes from the current offset
+                            byte[] dataBuffer = new byte[500];
+                            int bytesread = randomAccessFile.read(dataBuffer);
 
-                                            // Reset the socket timeout for future receives
-                                            socket.setSoTimeout(0);
+                            byte[] data = new byte[bytesread];
+                            System.arraycopy(dataBuffer, 0, data, 0, bytesread);
 
-                                            // Exit the loop as we have received a response
-                                            break;
+                            ByteBuffer msg_buffer = ByteBuffer.allocate(5 + data.length);
+                            msg_buffer.put((byte) 1);
+                            msg_buffer.put(Serializer.intToFourBytes(blockID));
+                            msg_buffer.put(data);
+                            byte[] msg = msg_buffer.array();
 
-                                        } catch (SocketTimeoutException e) {
-                                            attempt++;
-                                            if (attempt == 3)
-                                                break;
-                                        }
-                                    } while (true);
-
-
-                                }
+                            DatagramPacket responsePacket = new DatagramPacket(msg, msg.length, senderAddress, senderPort);
 
 
+                            for (int attempt = 0; attempt < 3; attempt++) {
+                                socket.send(responsePacket);
+                                Thread.sleep(5000);
+                                if (!blocksToSend.contains(blockToSend))
+                                    break;
                             }
-
-
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
                         }
-
+                    } catch (RuntimeException e) {
+                        throw new RuntimeException(e);
                     }
 
+
+                } else if (receivedData[0] == 1) {
+
+                    BlockToReceive blockToReceive = new BlockToReceive(name, blockID);
+
+                    byte[] nameFileBytes = file.getName().getBytes();
+                    byte nameFileBytesSize = (byte) nameFileBytes.length;
+                    ByteBuffer byteBuffer = ByteBuffer.allocate(1 + 1 + nameFileBytesSize + 4);
+                    byteBuffer.put((byte) 2);
+                    byteBuffer.put(nameFileBytesSize);
+                    byteBuffer.put(nameFileBytes);
+                    byteBuffer.put(Serializer.intToFourBytes(blockID));
+
+                    //Send datagram
+                    DatagramPacket ackPacket = new DatagramPacket(byteBuffer.array(), byteBuffer.array().length, senderAddress, senderPort);
+
+                    if (!blocksToReceive.contains(blockToReceive)) {
+                        socket.send(ackPacket);
+                        return;
+                    }
+
+                    int receivedLength = packet.getLength(); // Actual length of received data
+
+                    // Ignore empty or unused part of the packet
+                    byte[] actualData = new byte[receivedLength - 6 - size_name];
+
+                    // Copy the data from the packet to the actualData array
+                    System.arraycopy(packet.getData(), 6 + size_name, actualData, 0, receivedLength - 6 - size_name);
+
+                    MessageDigest digest = MessageDigest.getInstance("SHA-1");
+                    digest.update(actualData, 0, actualData.length);
+
+                    byte[] dataHashBytes = digest.digest();
+
+                    if (blocksToReceive.get(blockToReceive) == dataHashBytes) {
+                        blocksToReceive.remove(blockToReceive);
+                        //Write data in file using RandomAccessFile
+                        try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
+                            // Set the file pointer to the desired offset
+                            randomAccessFile.seek(blockID * 500);
+                            // Write 500 bytes from the current offset
+                            randomAccessFile.write(actualData);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        //Send tcp message to tracker to update file info
+                        out.write(TPManager.updateMessage(file.getName(), blockID));
+
+
+
+                        //Create a DatagramPacket to send data to ACK that the data was received
+                        //Put the name of the file on the datagram
+
+                        socket.send(ackPacket);
+                    }
 
                 }
 
 
             } catch (Exception e) {
                 e.printStackTrace();
-            } finally {
-                // Close the socket when the thread is interrupted or finished
-                if (socket != null && !socket.isClosed()) {
-                    socket.close();
-                }
             }
+        }
+    }
+
+
+    public static class BlockToSend {
+
+        String nameFile;
+        int id;
+        String ip;
+
+        public BlockToSend(String nameFile, int id, String ip) {
+            this.nameFile = nameFile;
+            this.id = id;
+            this.ip = ip;
+        }
+
+    }
+
+    public static class BlockToReceive {
+
+        String nameFile;
+        int id;
+
+        public BlockToReceive(String nameFile, int id) {
+            this.nameFile = nameFile;
+            this.id = id;
         }
 
     }
@@ -516,6 +658,7 @@ public class FS_Node {
         }
     }
 
+    /*
     public static class NodePriority {
         String ip;
         int ping;
@@ -527,6 +670,8 @@ public class FS_Node {
             available = true;
         }
     }
+
+     */
 
 
 }

@@ -1,6 +1,7 @@
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -105,6 +106,16 @@ public class TPManager {
     }
 
 
+    public static byte[] updateMessage(String name, int blockNumber){
+        ByteBuffer byteBuffer = ByteBuffer.allocate(1+1+name.length()+4);
+        byteBuffer.put((byte)2);
+        byteBuffer.put((byte)name.length());
+        byteBuffer.put(name.getBytes());
+        byteBuffer.put(Serializer.intToFourBytes(blockNumber));
+        return byteBuffer.array();
+    }
+
+
 
 
 
@@ -112,16 +123,27 @@ public class TPManager {
     private static byte[] calculateSHA1(File file, int chunkSize) throws IOException, NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-1");
 
+        int sizeEncoding = 0;
+        List<byte[]> listSHA1 = new ArrayList<>();
+
         try (FileInputStream fis = new FileInputStream(file)) {
             byte[] buffer = new byte[chunkSize];
             int bytesRead;
 
+
             while ((bytesRead = fis.read(buffer)) != -1) {
                 digest.update(buffer, 0, bytesRead);
+                listSHA1.add(digest.digest());
+                sizeEncoding += 20;
             }
         }
 
-        return digest.digest();
+        ByteBuffer byteBuffer = ByteBuffer.allocate(sizeEncoding);
+        for (byte[] bytes : listSHA1)
+            byteBuffer.put(bytes);
+
+
+        return byteBuffer.array();
     }
 
 
