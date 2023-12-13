@@ -45,7 +45,7 @@ public class FS_Node {
 
             DatagramSocket socketUDP = new DatagramSocket(9090);
 
-            UDPListener udpListener = new UDPListener(socketUDP, listOfFiles, blocksToSend, blocksToReceive);
+            UDPListener udpListener = new UDPListener(socketUDP, listOfFiles, blocksToSend, blocksToReceive, out);
             new Thread(udpListener).start();
 
 
@@ -63,6 +63,19 @@ public class FS_Node {
                 switch (option[0]) {
 
                     case "GET": {
+
+                        //Verificar se nodo já tem o ficheiro
+                        boolean exists = false;
+                        for (File f : listOfFiles) {
+                            if (f.getName().equals(option[1])) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (exists)
+                            break;
+
+
                         out.write(TPManager.getFileMessage(option[1]));
                         out.flush();
 
@@ -276,6 +289,7 @@ public class FS_Node {
                     case "QUIT": {
                         out.writeByte(0);
                         out.flush();
+                        udpListener.stopThread();
                         loop = false;
                         break;
                     }
@@ -432,8 +446,9 @@ public class FS_Node {
         private File[] listOfFiles;
         List<BlockToSend> blocksToSend;
         ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
+        DataOutputStream out;
 
-        public UDPListener(DatagramSocket socket, File[] listOfFiles, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive) {
+        public UDPListener(DatagramSocket socket, File[] listOfFiles, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, DataOutputStream out) {
             try {
                 // Create a DatagramSocket to listen on the specified port
                 this.socket = socket;
@@ -447,20 +462,33 @@ public class FS_Node {
             }
         }
 
+        public void stopThread() {
+            socket.close();
+            this.interrupt();
+        }
+
         @Override
         public void run() {
-            try {
-                while (true) {
-                    // Create a DatagramPacket to receive data
-                    DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+
+            while (true) {
+                try {
 
                     // Receive data from the socket
                     socket.receive(packet);
 
-                    new Thread(new UDPDataHandler(socket, packet, listOfFiles, blocksToSend, blocksToReceive)).start();
+                    new Thread(new UDPDataHandler(socket, packet, listOfFiles, blocksToSend, blocksToReceive, out)).start();
+
                 }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+                catch (IOException e) {
+                    // If the socket was closed, just terminate the thread
+                    if (socket.isClosed()) {
+                        return;
+                    }
+                    // Otherwise print the error
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -602,7 +630,7 @@ public class FS_Node {
 
                         //Send tcp message to tracker to update file info
                         out.write(TPManager.updateMessage(file.getName(), blockID));
-
+                        out.flush();
 
 
                         //Create a DatagramPacket to send data to ACK that the data was received

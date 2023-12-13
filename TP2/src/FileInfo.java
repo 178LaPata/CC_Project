@@ -1,16 +1,13 @@
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class FileInfo implements Comparable<FileInfo> {
 
     private String nome;
     private int blocos_quantidade;
-    List<Integer> blocos_disponiveis;
+    Set<Integer> blocos_disponiveis;
     boolean complete = false;
 
     public FileInfo(String nome, int blocos_quantidade) {
@@ -19,7 +16,7 @@ public class FileInfo implements Comparable<FileInfo> {
         complete = true;
     }
 
-    public FileInfo(String nome, int blocos_quantidade, List<Integer> blocos_disponiveis) {
+    public FileInfo(String nome, int blocos_quantidade, Set<Integer> blocos_disponiveis) {
         this.nome = nome;
         this.blocos_quantidade = blocos_quantidade;
         if (blocos_quantidade == blocos_disponiveis.size())
@@ -87,6 +84,14 @@ public class FileInfo implements Comparable<FileInfo> {
         buffer.put(blocos_disponiveis);
 
         return buffer.array();
+    }
+
+    public void addBlocoDisponivel(int bloco){
+        blocos_disponiveis.add(bloco);
+        if (blocos_disponiveis.size() == blocos_quantidade) {
+            complete = true;
+            blocos_disponiveis = null;
+        }
     }
 
 
