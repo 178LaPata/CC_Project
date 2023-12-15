@@ -304,6 +304,19 @@ public class FS_Tracker {
                         case 0: {
                             System.out.println("Conexão fechada com nodo: " + nodeSocket.getInetAddress().getHostAddress());
                             loop = false;
+                            //Check if node is in node_files
+                            //If it is, remove it and remove it's files from file_locations
+                            //Also, if file from file_locations has 0 elements, remove it
+                            if (node_files.containsKey(ip_node)){
+                                List<FileInfo> fileInfoList = node_files.remove(ip_node);
+                                for (FileInfo fileInfo : fileInfoList){
+                                    List<String> locations = file_locations.get(fileInfo.getNome());
+                                    locations.remove(ip_node);
+                                    if (locations.isEmpty()){
+                                        file_locations.remove(fileInfo.getNome());
+                                    }
+                                }
+                            }
                             break;
                         }
 
