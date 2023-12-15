@@ -155,6 +155,8 @@ public class FS_Node {
                         ConcurrentSkipListSet<BlockPriority> blockPrioritySet = new ConcurrentSkipListSet<>(Comparator.comparingInt(bp -> nodesForBlocks.get(bp.id).size()));
                         blockPrioritySet.addAll(nodesForBlocks.keySet().stream().map(BlockPriority::new).collect(Collectors.toList()));
 
+                        ConcurrentSkipListSet<String> ipsToTest = new ConcurrentSkipListSet<>();
+
                         //Transfer blocks by order of priority
 
                         //open file with name option[1] and create it if it doesnt exist
@@ -168,14 +170,18 @@ public class FS_Node {
                         ExecutorService executor = Executors.newFixedThreadPool(nodosTotais);
 
 
+                        CheckNode checkNode = new CheckNode(ipsNodes, ipsToTest, out, in);
+                        new Thread(checkNode).start();
+
                         //run UDPTransferThread for each block until all blocks are transferred
-                        for (int i = 0; i < blocosTotais; i++) {
-                            executor.execute(new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive));
+                        for (int i = 0; i < nodosTotais; i++) {
+                            executor.execute(new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive,ipsToTest));
                         }
 
                         //wait for all threads to finish
                         executor.shutdown();
 
+                        checkNode.interrupt();
 
                         /*
                         Map<Integer, Set<String>> blockAvailability = new HashMap<>();
@@ -349,9 +355,12 @@ public class FS_Node {
         private ConcurrentSkipListSet<String> ipsNodes;
         ConcurrentHashMap<Integer, List<String>> nodesForBlocks;
         ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
+        ConcurrentSkipListSet<String> ipsToTest;
 
 
-        public UDPRequestBlock(DatagramSocket socket, String fileName, ConcurrentSkipListSet<BlockPriority> blockPrioritySet, ConcurrentSkipListSet<String> ipsNodes, ConcurrentHashMap<Integer, List<String>> nodesForBlocks, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive) {
+        public UDPRequestBlock(DatagramSocket socket, String fileName, ConcurrentSkipListSet<BlockPriority> blockPrioritySet,
+                               ConcurrentSkipListSet<String> ipsNodes, ConcurrentHashMap<Integer, List<String>> nodesForBlocks,
+                               ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, ConcurrentSkipListSet<String> ipsToTest) {
             try {
                 this.socket = socket;
                 this.fileName = fileName;
@@ -359,6 +368,7 @@ public class FS_Node {
                 this.ipsNodes = ipsNodes;
                 this.nodesForBlocks = nodesForBlocks;
                 this.blocksToReceive = blocksToReceive;
+                this.ipsToTest = ipsToTest;
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -411,21 +421,24 @@ public class FS_Node {
                                             break;
                                         }
                                     }
-                                    if (attempt == 3)
+                                    if (attempt == 3) {
                                         blockPriority.available = true;
+                                        ipsToTest.add(ip);
+                                        //ask transfer if this ip is still available
+                                        //if not, remove from ipsNodes
+                                        //if yes, try again
+                                    }
+                                    else ipsNodes.add(ip);
 
                                 } catch (IOException | InterruptedException ex) {
                                     throw new RuntimeException(ex);
                                 }
 
-
-                                ipsNodes.add(ip);
                                 break;
                             }
                         }
 
                     }
-
 
                 }
 
@@ -435,6 +448,49 @@ public class FS_Node {
 
         }
 
+    }
+
+    //Create thread that will do something everytime ipsToTest is updated
+    //If ip is not available, remove from ipsNodes
+    public static class CheckNode extends Thread {
+
+            ConcurrentSkipListSet<String> ipsNodes;
+            ConcurrentSkipListSet<String> ipsToTest;
+            DataOutputStream out;
+            DataInputStream in;
+
+
+            public CheckNode(ConcurrentSkipListSet<String> ipsNodes, ConcurrentSkipListSet<String> ipsToTest, DataOutputStream out, DataInputStream in){
+                this.ipsNodes = ipsNodes;
+                this.ipsToTest = ipsToTest;
+                this.out = out;
+                this.in = in;
+            }
+
+            @Override
+            public void run() {
+
+                while (true) {
+
+                    for (String ip : ipsToTest) {
+
+                        //send message thru out to tracker asking if ip is still available
+                        try {
+                            out.write(TPManager.checkNodeMessage(ip));
+                            out.flush();
+                            byte response = in.readByte();
+                            if (response == 0)
+                                ipsNodes.add(ip);
+                            ipsToTest.remove(ip);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+
+                }
+
+            }
 
     }
 

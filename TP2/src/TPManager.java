@@ -1,6 +1,8 @@
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -143,6 +145,15 @@ public class TPManager {
             byteBuffer.put(bytes);
 
 
+        return byteBuffer.array();
+    }
+
+
+    //the message should have byte 8 at the start and then the ip address of the node
+    public static byte[] checkNodeMessage(String ip) throws UnknownHostException {
+        ByteBuffer byteBuffer = ByteBuffer.allocate(1+ip.length());
+        byteBuffer.put((byte) 8);
+        byteBuffer.put(InetAddress.getByName(ip).getAddress());
         return byteBuffer.array();
     }
 

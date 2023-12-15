@@ -110,8 +110,8 @@ public class FS_Tracker {
                                 byte[] sha1Encoding = null;
                                 if (size_blocos_disponiveis == 0) {
                                     fileInfo = new FileInfo(name, blocos_quantidade);
-                                    sha1Encoding = new byte[20*blocos_quantidade];
-                                    in.readFully(sha1Encoding,0,20*blocos_quantidade);
+                                    sha1Encoding = new byte[20 * blocos_quantidade];
+                                    in.readFully(sha1Encoding, 0, 20 * blocos_quantidade);
                                 } else {
                                     Set<Integer> blocos = new HashSet<>();
                                     for (int b = 0; b < size_blocos_disponiveis; b++) {
@@ -138,15 +138,15 @@ public class FS_Tracker {
                                     file_locations.get(fileInfo.getNome()).add(ip_node);
                                 }
 
-                                if (sha1Encoding != null){
-                                    if (!file_hash.containsKey(name)){
+                                if (sha1Encoding != null) {
+                                    if (!file_hash.containsKey(name)) {
                                         List<byte[]> tempList = new ArrayList<>();
-                                        for (int id = 0; id<blocos_quantidade; id++){
+                                        for (int id = 0; id < blocos_quantidade; id++) {
                                             byte[] tempByte = new byte[20];
-                                            System.arraycopy(tempByte,0,sha1Encoding,id*20,20);
+                                            System.arraycopy(tempByte, 0, sha1Encoding, id * 20, 20);
                                             tempList.add(tempByte);
                                         }
-                                        file_hash.put(name,tempList);
+                                        file_hash.put(name, tempList);
                                     }
                                 }
 
@@ -155,35 +155,33 @@ public class FS_Tracker {
                             }
 
 
-
                             break;
                         }
 
 
                         //UPDATE
-                            //read tpmanager.getupdatemesage
+                        //read tpmanager.getupdatemesage
                         case 2: {
 
                             byte sizeName = in.readByte();
                             byte[] nameBytes = new byte[sizeName];
-                            in.readFully(nameBytes,0,sizeName);
-                            String name = new String(nameBytes,StandardCharsets.UTF_8);
+                            in.readFully(nameBytes, 0, sizeName);
+                            String name = new String(nameBytes, StandardCharsets.UTF_8);
                             int bloco = in.readInt();
 
                             List<String> locations = file_locations.get(name);
 
-                            if (!locations.contains(ip_node)){
+                            if (!locations.contains(ip_node)) {
                                 locations.add(ip_node);
 
                                 Set<Integer> blocos_disponiveis = new HashSet<>();
                                 blocos_disponiveis.add(bloco);
-                                FileInfo fileInfo = new FileInfo(name,file_hash.get(name).size(),blocos_disponiveis);
+                                FileInfo fileInfo = new FileInfo(name, file_hash.get(name).size(), blocos_disponiveis);
                                 node_files.get(ip_node).add(fileInfo);
-                            }
-                            else {
+                            } else {
                                 List<FileInfo> fileInfoList = node_files.get(ip_node);
-                                for (FileInfo fileInfo : fileInfoList){
-                                    if (fileInfo.getNome().equals(name)){
+                                for (FileInfo fileInfo : fileInfoList) {
+                                    if (fileInfo.getNome().equals(name)) {
                                         fileInfo.addBlocoDisponivel(bloco);
                                         break;
                                     }
@@ -195,8 +193,7 @@ public class FS_Tracker {
                         }
 
 
-
-                        case 3:{
+                        case 3: {
                             byte[] message = TPManager.filesAvailableMessage(file_locations.keySet());
                             out.write(message);
                             out.flush();
@@ -205,14 +202,14 @@ public class FS_Tracker {
 
 
                         //GET file
-                        case 4:{
+                        case 4: {
                             byte size_fileName = in.readByte();
                             byte[] fileName_bytes = new byte[size_fileName];
-                            in.readFully(fileName_bytes,0,size_fileName);
-                            String fileName = new String(fileName_bytes,StandardCharsets.UTF_8);
+                            in.readFully(fileName_bytes, 0, size_fileName);
+                            String fileName = new String(fileName_bytes, StandardCharsets.UTF_8);
                             List<String> ips = file_locations.get(fileName);
 
-                            if (ips == null){
+                            if (ips == null) {
                                 out.writeByte(0);
                                 out.flush();
                                 break;
@@ -225,17 +222,16 @@ public class FS_Tracker {
                             List<byte[]> nodo_mensagens = new ArrayList<>();
 
 
-
                             blocos_quantidade = file_hash.get(fileName).size();
 
                             //Go to filehash and copy each byte[] to hashes
-                            for (int i = 0; i<blocos_quantidade; i++){
+                            for (int i = 0; i < blocos_quantidade; i++) {
                                 byte[] tempByte = new byte[20];
-                                System.arraycopy(tempByte,0,file_hash.get(fileName).get(i),0,20);
+                                System.arraycopy(tempByte, 0, file_hash.get(fileName).get(i), 0, 20);
                                 hashes.add(tempByte);
                             }
 
-                            for (String ip : ips){
+                            for (String ip : ips) {
 
                                 List<FileInfo> fileInfoList = node_files.get(ip);
                                 FileInfo fileInfo = null;
@@ -246,8 +242,8 @@ public class FS_Tracker {
                                     }
 
 
-                                if (fileInfo.complete){
-                                    ByteBuffer byteBufferTemp = ByteBuffer.allocate(4+4);
+                                if (fileInfo.complete) {
+                                    ByteBuffer byteBufferTemp = ByteBuffer.allocate(4 + 4);
                                     byte[] ipBytes = InetAddress.getByName(ip).getAddress();
                                     byteBufferTemp.put(ipBytes);
                                     byte[] number_blocks = new byte[4];
@@ -255,14 +251,13 @@ public class FS_Tracker {
                                     byte[] msg = byteBufferTemp.array();
                                     nodo_mensagens.add(msg);
                                     size_mensagem += msg.length;
-                                }
-                                else{
+                                } else {
                                     Set<Integer> fds = fileInfo.blocos_disponiveis;
-                                    ByteBuffer byteBufferTemp = ByteBuffer.allocate(4+4+4*fds.size());
+                                    ByteBuffer byteBufferTemp = ByteBuffer.allocate(4 + 4 + 4 * fds.size());
                                     byte[] ipBytes = InetAddress.getByName(ip).getAddress();
                                     byteBufferTemp.put(ipBytes);
                                     byteBufferTemp.put(Serializer.intToFourBytes(fds.size()));
-                                    for (int a : fds){
+                                    for (int a : fds) {
                                         byteBufferTemp.put(Serializer.intToFourBytes(a));
                                     }
                                     byte[] msg = byteBufferTemp.array();
@@ -272,11 +267,11 @@ public class FS_Tracker {
 
                             }
 
-                            ByteBuffer byteBuffer = ByteBuffer.allocate(2+4+hashes.size()*20+size_mensagem);
+                            ByteBuffer byteBuffer = ByteBuffer.allocate(2 + 4 + hashes.size() * 20 + size_mensagem);
 
                             byteBuffer.put(Serializer.intToTwoBytes(nodos_totais));
                             byteBuffer.put(Serializer.intToFourBytes(blocos_quantidade));
-                            for (byte[] bytes : hashes){
+                            for (byte[] bytes : hashes) {
                                 byteBuffer.put(bytes);
                             }
                             for (byte[] bytes : nodo_mensagens)
@@ -291,13 +286,33 @@ public class FS_Tracker {
                         case 5: {
                             byte size_fileName = in.readByte();
                             byte[] fileName_bytes = new byte[size_fileName];
-                            in.readFully(fileName_bytes,0,size_fileName);
-                            String fileName = new String(fileName_bytes,StandardCharsets.UTF_8);
+                            in.readFully(fileName_bytes, 0, size_fileName);
+                            String fileName = new String(fileName_bytes, StandardCharsets.UTF_8);
                             byte[] blocoBytes = new byte[4];
                             in.readFully(blocoBytes, 0, 4);
                             int bloco = Serializer.fourBytesToInt(blocoBytes);
                             out.write(file_hash.get(fileName).get(bloco));
                             out.flush();
+                            break;
+                        }
+
+
+                        //check if node still online
+                            //the message recieved is checkNodemMessage
+                        case 8: {
+                            //get checkNodeMessage
+                            //in.read 4 bytes
+                            byte[] message = new byte[4];
+                            in.readFully(message, 0, 4);
+                            //byte[4] to ip
+                            String ip = InetAddress.getByAddress(message).getHostAddress();
+                            if (node_files.containsKey(ip)) {
+                                out.writeByte(1);
+                                out.flush();
+                            } else {
+                                out.writeByte(0);
+                                out.flush();
+                            }
                             break;
                         }
 
@@ -307,12 +322,12 @@ public class FS_Tracker {
                             //Check if node is in node_files
                             //If it is, remove it and remove it's files from file_locations
                             //Also, if file from file_locations has 0 elements, remove it
-                            if (node_files.containsKey(ip_node)){
+                            if (node_files.containsKey(ip_node)) {
                                 List<FileInfo> fileInfoList = node_files.remove(ip_node);
-                                for (FileInfo fileInfo : fileInfoList){
+                                for (FileInfo fileInfo : fileInfoList) {
                                     List<String> locations = file_locations.get(fileInfo.getNome());
                                     locations.remove(ip_node);
-                                    if (locations.isEmpty()){
+                                    if (locations.isEmpty()) {
                                         file_locations.remove(fileInfo.getNome());
                                     }
                                 }
@@ -536,8 +551,6 @@ public class FS_Tracker {
             }
         }
     }
-
-
 
 
     public static String generateRandomIp() {
