@@ -16,6 +16,9 @@ public class FS_Tracker {
 
             tracker = new ServerSocket(9090);
 
+
+            System.out.println(tracker.getInetAddress());
+
             System.out.println("Servidor ativo em : " + InetAddress.getLocalHost().getHostAddress() + " porta " + tracker.getLocalPort());
 
 
