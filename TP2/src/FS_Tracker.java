@@ -10,17 +10,21 @@ public class FS_Tracker {
 
     public static void main(String[] args) {
 
+        if (args.length<1){
+            return;
+        }
+
         ServerSocket tracker = null;
+
+        String dnsNames = args[0];
 
         try {
 
             tracker = new ServerSocket(9090);
 
-
-            System.out.println(tracker.getInetAddress());
+            System.out.println(InetAddress.getByName(InetAddress.getLocalHost().getHostName()+"."+dnsNames));
 
             System.out.println("Servidor ativo em : " + InetAddress.getLocalHost().getHostAddress() + " porta " + tracker.getLocalPort());
-
 
             ConcurrentHashMap<String, List<FileInfo>> node_files = new ConcurrentHashMap<>();
             ConcurrentHashMap<String, List<String>> file_Locations = new ConcurrentHashMap<>();
@@ -31,9 +35,12 @@ public class FS_Tracker {
 
                 Socket node = tracker.accept();
 
-                System.out.println("Novo nodo conectado: " + node.getInetAddress().getHostAddress());
+                InetSocketAddress remoteSocketAddress = (InetSocketAddress) node.getRemoteSocketAddress();
+                String ipNode = remoteSocketAddress.getAddress().getHostAddress();
 
-                NodeHandler nodeHandler = new NodeHandler(node, node_files, file_Locations, file_hash);
+                System.out.println("Novo nodo conectado: " + ipNode);
+
+                NodeHandler nodeHandler = new NodeHandler(node, node_files, file_Locations, file_hash, ipNode);
 
                 new Thread(nodeHandler).start();
             }
@@ -59,21 +66,20 @@ public class FS_Tracker {
         private ConcurrentHashMap<String, List<FileInfo>> node_files;
         private ConcurrentHashMap<String, List<String>> file_locations;
         private ConcurrentHashMap<String, List<byte[]>> file_hash;
+        private String ip_node;
 
-
-        public NodeHandler(Socket socket, ConcurrentHashMap<String, List<FileInfo>> node_files, ConcurrentHashMap<String, List<String>> file_locations, ConcurrentHashMap<String, List<byte[]>> file_hash) {
+        public NodeHandler(Socket socket, ConcurrentHashMap<String, List<FileInfo>> node_files, ConcurrentHashMap<String, List<String>> file_locations, ConcurrentHashMap<String, List<byte[]>> file_hash, String ip_node) {
             this.nodeSocket = socket;
             this.node_files = node_files;
             this.file_locations = file_locations;
             this.file_hash = file_hash;
+            this.ip_node = ip_node;
         }
 
 
         public void run() {
 
             try {
-
-                String ip_node = nodeSocket.getInetAddress().getHostAddress();
 
                 DataOutputStream out = new DataOutputStream(nodeSocket.getOutputStream());
                 DataInputStream in = new DataInputStream(nodeSocket.getInputStream());
