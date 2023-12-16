@@ -10,19 +10,18 @@ public class FS_Tracker {
 
     public static void main(String[] args) {
 
-        if (args.length<1){
-            return;
-        }
+
+        String dnsServer = "10.4.4.1";
 
         ServerSocket tracker = null;
-
-        String dnsNames = args[0];
 
         try {
 
             tracker = new ServerSocket(9090);
 
-            System.out.println(InetAddress.getByName(InetAddress.getLocalHost().getHostName()+"."+dnsNames));
+            System.setProperty("sun.net.spi.nameservice.nameservers", dnsServer);
+            System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
+
 
             System.out.println("Servidor ativo em : " + InetAddress.getLocalHost().getHostAddress() + " porta " + tracker.getLocalPort());
 
