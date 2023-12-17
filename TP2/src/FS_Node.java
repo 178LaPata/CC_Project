@@ -607,10 +607,6 @@ public class FS_Node {
 
             try {
 
-                byte[] test = new byte[packet.getLength()];
-                System.arraycopy(packet.getData(),0,test,0,packet.getLength());
-                System.out.println(Arrays.toString(test));
-
                 byte[] receivedData = packet.getData();
 
                 InetAddress senderAddress = packet.getAddress();
@@ -657,8 +653,10 @@ public class FS_Node {
                             byte[] data = new byte[bytesread];
                             System.arraycopy(dataBuffer, 0, data, 0, bytesread);
 
-                            ByteBuffer msg_buffer = ByteBuffer.allocate(5 + data.length);
+                            ByteBuffer msg_buffer = ByteBuffer.allocate(6 + size_name + data.length);
                             msg_buffer.put((byte) 1);
+                            msg_buffer.put((byte) size_name);
+                            msg_buffer.put(name.getBytes());
                             msg_buffer.put(Serializer.intToFourBytes(blockID));
                             msg_buffer.put(data);
                             byte[] msg = msg_buffer.array();
@@ -668,7 +666,7 @@ public class FS_Node {
 
                             for (int attempt = 0; attempt < 3; attempt++) {
                                 socket.send(responsePacket);
-                                Thread.sleep(5000);
+                                Thread.sleep(1000);
                                 if (!blocksToSend.contains(blockToSend))
                                     break;
                             }
@@ -812,7 +810,7 @@ public class FS_Node {
 
         @Override
         public int hashCode() {
-            return Objects.hash(nameFile, id);
+            return Objects.hash(id);
         }
 
     }
