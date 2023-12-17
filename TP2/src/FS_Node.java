@@ -438,7 +438,6 @@ public class FS_Node {
 
                                 BlockToReceive blockToReceive = new BlockToReceive(fileName, blockPriority.id);
 
-                                System.out.println(Arrays.toString(msg));
 
                                 try {
 
@@ -676,6 +675,7 @@ public class FS_Node {
                                 if (!blocksToSend.contains(blockToSend))
                                     break;
                             }
+
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }

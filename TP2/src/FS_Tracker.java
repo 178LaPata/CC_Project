@@ -154,7 +154,7 @@ public class FS_Tracker {
                                     }
                                 }
 
-                                System.out.println(node_files);
+                                System.out.println(file_hash);
 
                             }
 
