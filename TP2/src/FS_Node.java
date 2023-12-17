@@ -608,7 +608,7 @@ public class FS_Node {
                     byte[] actualData = new byte[receivedLength - 6 - size_name];
 
                     // Copy the data from the packet to the actualData array
-                    System.arraycopy(packet.getData(), 6 - 1 + size_name, actualData, 0, receivedLength - 6 - size_name);
+                    System.arraycopy(packet.getData(), 6 + size_name, actualData, 0, receivedLength - 6 - size_name);
 
 
                     /*
