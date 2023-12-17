@@ -192,8 +192,8 @@ public class FS_Node {
                          */
 
 
-                        CheckNode checkNode = new CheckNode(ipsNodes, ipsToTest, out, in);
-                        new Thread(checkNode).start();
+                        //CheckNode checkNode = new CheckNode(ipsNodes, ipsToTest, out, in);
+                        //new Thread(checkNode).start();
 
                         UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive,ipsToTest);
                         Thread[] threads = new Thread[nodosTotais];
@@ -209,7 +209,7 @@ public class FS_Node {
 
                         System.out.println("Transferência concluída");
 
-                        checkNode.interrupt();
+                        //checkNode.interrupt();
 
                         /*
                         Map<Integer, Set<String>> blockAvailability = new HashMap<>();
