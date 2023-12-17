@@ -611,6 +611,10 @@ public class FS_Node {
 
                 byte[] receivedData = packet.getData();
 
+                byte[] test = new byte[packet.getLength()];
+                System.arraycopy(receivedData,0,test,0,packet.getLength());
+                System.out.println(Arrays.toString(test));
+
                 InetAddress senderAddress = packet.getAddress();
                 int senderPort = packet.getPort();
 
@@ -766,6 +770,12 @@ public class FS_Node {
                     socket.send(ackPacket);
 
 
+                }
+                else if (receivedData[0] == 2){
+
+                    BlockToSend blockToSend = new BlockToSend(name, blockID, senderAddress.getHostAddress());
+
+                    blocksToSend.remove(blockToSend);
                 }
 
 
