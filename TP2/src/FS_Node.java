@@ -653,8 +653,6 @@ public class FS_Node {
                             byte[] data = new byte[bytesread];
                             System.arraycopy(dataBuffer, 0, data, 0, bytesread);
 
-                            System.out.println(new String(data,StandardCharsets.UTF_8));
-
                             ByteBuffer msg_buffer = ByteBuffer.allocate(6 + size_name + data.length);
                             msg_buffer.put((byte) 1);
                             msg_buffer.put((byte) size_name);
@@ -706,13 +704,15 @@ public class FS_Node {
                     byte[] actualData = new byte[receivedLength - 6 - size_name];
 
                     // Copy the data from the packet to the actualData array
-                    System.arraycopy(packet.getData(), 6 + size_name, actualData, 0, receivedLength - 6 - size_name);
+                    System.arraycopy(packet.getData(), 6 - 1 + size_name, actualData, 0, receivedLength - 6 + 1 - size_name);
 
+
+                    /*
                     MessageDigest digest = MessageDigest.getInstance("SHA-1");
                     digest.update(actualData, 0, actualData.length);
 
 
-                    /*
+
 
                     byte[] dataHashBytes = digest.digest();
 
@@ -784,6 +784,25 @@ public class FS_Node {
             this.nameFile = nameFile;
             this.id = id;
             this.ip = ip;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            BlockToSend other = (BlockToSend) obj;
+            return id == other.id &&
+                    Objects.equals(nameFile, other.nameFile) &&
+                    Objects.equals(ip, other.ip);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(nameFile, id, ip);
         }
 
     }
