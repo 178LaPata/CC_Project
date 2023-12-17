@@ -747,6 +747,7 @@ public class FS_Node {
                         randomAccessFile.seek(blockID * 500);
                         // Write 500 bytes from the current offset
                         randomAccessFile.write(actualData);
+                        blocksToReceive.remove(blockToReceive);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
