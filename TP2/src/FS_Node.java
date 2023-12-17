@@ -196,13 +196,14 @@ public class FS_Node {
                         new Thread(checkNode).start();
 
                         UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive,ipsToTest);
+                        Thread[] threads = new Thread[nodosTotais];
 
                         for (int i = 0; i <nodosTotais; i++){
-                            new Thread(udpRequestBlock);
+                            threads[i] = new Thread(udpRequestBlock);
                         }
 
                         for (int i = 0; i<nodosTotais; i++){
-                            udpRequestBlock.join();
+                            threads[i].join();
                         }
 
                         System.out.println("Transferência concluída");
