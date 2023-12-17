@@ -200,6 +200,7 @@ public class FS_Node {
 
                         for (int i = 0; i <nodosTotais; i++){
                             threads[i] = new Thread(udpRequestBlock);
+                            threads[i].start();
                         }
 
                         for (int i = 0; i<nodosTotais; i++){
