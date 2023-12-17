@@ -617,6 +617,9 @@ public class FS_Node {
 
                     byte[] dataHashBytes = digest.digest();
 
+                    System.out.println(Arrays.toString(blocksToReceive.get(blockToReceive)));
+
+                    System.out.println(Arrays.toString(dataHashBytes));
 
                     if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
                         blocksToReceive.remove(blockToReceive);
