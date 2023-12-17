@@ -173,12 +173,13 @@ public class FS_Node {
 
 
 
+                        /*
+
                         //Thread executor = Executors.newFixedThreadPool(10);
                         ExecutorService executor = Executors.newFixedThreadPool(nodosTotais);
 
 
-                        CheckNode checkNode = new CheckNode(ipsNodes, ipsToTest, out, in);
-                        new Thread(checkNode).start();
+
 
                         //run UDPTransferThread for each block until all blocks are transferred
                         for (int i = 0; i < nodosTotais; i++) {
@@ -187,6 +188,24 @@ public class FS_Node {
 
                         //wait for all threads to finish
                         executor.shutdown();
+
+                         */
+
+
+                        CheckNode checkNode = new CheckNode(ipsNodes, ipsToTest, out, in);
+                        new Thread(checkNode).start();
+
+                        UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive,ipsToTest);
+
+                        for (int i = 0; i <nodosTotais; i++){
+                            new Thread(udpRequestBlock);
+                        }
+
+                        for (int i = 0; i<nodosTotais; i++){
+                            udpRequestBlock.join();
+                        }
+
+                        System.out.println("Transferência concluída");
 
                         checkNode.interrupt();
 
@@ -348,6 +367,8 @@ public class FS_Node {
 
 
         } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
 
