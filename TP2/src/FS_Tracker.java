@@ -19,11 +19,7 @@ public class FS_Tracker {
 
             tracker = new ServerSocket(9090);
 
-            System.setProperty("sun.net.spi.nameservice.nameservers", dnsServer);
-            System.setProperty("sun.net.spi.nameservice.provider.1", "dns,sun");
-
-
-            System.out.println("Servidor ativo em : " + InetAddress.getLocalHost().getHostAddress() + " porta " + tracker.getLocalPort());
+            //System.out.println("Servidor ativo em : " + InetAddress.getLocalHost().getHostAddress() + " porta " + tracker.getLocalPort());
 
             ConcurrentHashMap<String, List<FileInfo>> node_files = new ConcurrentHashMap<>();
             ConcurrentHashMap<String, List<String>> file_Locations = new ConcurrentHashMap<>();
@@ -185,6 +181,8 @@ public class FS_Tracker {
                                 Set<Integer> blocos_disponiveis = new HashSet<>();
                                 blocos_disponiveis.add(bloco);
                                 FileInfo fileInfo = new FileInfo(name, file_hash.get(name).size(), blocos_disponiveis);
+                                if (node_files.get(ip_node) == null)
+                                    node_files.put(ip_node,new ArrayList<>());
                                 node_files.get(ip_node).add(fileInfo);
                             } else {
                                 List<FileInfo> fileInfoList = node_files.get(ip_node);
