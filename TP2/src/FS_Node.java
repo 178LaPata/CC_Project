@@ -653,6 +653,8 @@ public class FS_Node {
                             byte[] data = new byte[bytesread];
                             System.arraycopy(dataBuffer, 0, data, 0, bytesread);
 
+                            System.out.println(new String(data,StandardCharsets.UTF_8));
+
                             ByteBuffer msg_buffer = ByteBuffer.allocate(6 + size_name + data.length);
                             msg_buffer.put((byte) 1);
                             msg_buffer.put((byte) size_name);
