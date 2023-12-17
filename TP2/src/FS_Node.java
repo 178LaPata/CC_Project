@@ -103,7 +103,7 @@ public class FS_Node {
                             byte[] hash = new byte[20];
                             in.readFully(hash, 0, 20);
                             blocksToReceive.put(new BlockToReceive(option[1], i), hash);
-                            System.out.println(blocksToReceive);
+                            System.out.println(i + Arrays.toString(hash));
                         }
 
                         //The rest of the message is the list of nodes
@@ -446,7 +446,7 @@ public class FS_Node {
                                     for (attempt = 0; attempt < 3; attempt++) {
                                         socket.send(requestPacket);
                                         Thread.sleep(1000);
-                                        if (blocksToReceive.get(blockToReceive) == null) {
+                                        if (!blocksToReceive.containsKey(blockToReceive)) {
                                             blockPrioritySet.remove(blockPriority);
                                             break;
                                         }
@@ -464,7 +464,8 @@ public class FS_Node {
                                     throw new RuntimeException(ex);
                                 }
 
-                                break;
+                                if (blocksToReceive.get(blockToReceive) == null)
+                                    break;
                             }
                         }
 
