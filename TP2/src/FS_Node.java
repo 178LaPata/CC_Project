@@ -438,6 +438,8 @@ public class FS_Node {
 
                                 BlockToReceive blockToReceive = new BlockToReceive(fileName, blockPriority.id);
 
+                                System.out.println(Arrays.toString(msg));
+
                                 try {
 
                                     DatagramPacket requestPacket = new DatagramPacket(msg, msg.length, InetAddress.getByName(ip), 9090);
