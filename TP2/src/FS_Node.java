@@ -583,8 +583,12 @@ public class FS_Node {
             try {
 
                 byte[] receivedData = packet.getData();
+
+                System.out.println(Arrays.toString(receivedData));
+
                 InetAddress senderAddress = packet.getAddress();
                 int senderPort = packet.getPort();
+
 
                 int size_name = receivedData[1];
                 String name = new String(receivedData, 2, size_name);
