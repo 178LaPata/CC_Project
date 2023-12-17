@@ -103,8 +103,9 @@ public class FS_Node {
                             byte[] hash = new byte[20];
                             in.readFully(hash, 0, 20);
                             blocksToReceive.put(new BlockToReceive(option[1], i), hash);
-                            System.out.println(i + Arrays.toString(hash));
                         }
+
+                        System.out.println(blocksToReceive);
 
                         //The rest of the message is the list of nodes
                         //Each node is represented by 4 bytes for the IP and 4 bytes for the number of blocks available
@@ -211,109 +212,6 @@ public class FS_Node {
 
                         //checkNode.interrupt();
 
-                        /*
-                        Map<Integer, Set<String>> blockAvailability = new HashMap<>();
-                        Set<String> ipsNodes = new HashSet<>();
-
-
-
-                        for (int i = 0; i < blocosTotais; i++) {
-                            blockAvailability.put(i, new HashSet<>());
-                        }
-
-
-                        ConcurrentHashMap<Integer, List<String>> nodesForBlocks = new ConcurrentHashMap<>();
-                        for (int i = 0; i < blocosTotais; i++) {
-                            nodesForBlocks.put(i, new ArrayList<>());
-                        }
-
-                        for (int i = 0; i < nodosTotais; i++) {
-
-                            byte[] ipBytes = new byte[4];
-                            in.readFully(ipBytes, 0, 4);
-                            String ip = InetAddress.getByAddress(ipBytes).getHostAddress();
-
-
-                            byte[] qtBlocosDisponiveisBytes = new byte[4];
-                            in.readFully(qtBlocosDisponiveisBytes, 0, 4);
-                            int qtBlocosDisponiveis = Serializer.fourBytesToInt(qtBlocosDisponiveisBytes);
-
-
-                            //ipsNodes.add(ip);
-                            if (qtBlocosDisponiveis == 0) {
-                                for (int b = 0; b < blocosTotais; b++) {
-                                    //blockAvailability.get(b).add(ip);
-                                    nodesForBlocks.get(b).add(ip);
-                                }
-                            } else {
-                                for (int b = 0; b < qtBlocosDisponiveis; b++) {
-                                    byte[] blocoIDBytes = new byte[4];
-                                    in.readFully(blocoIDBytes, 0, 4);
-                                    int bloco = Serializer.fourBytesToInt(blocoIDBytes);
-                                    //blockAvailability.get(bloco).add(ip);
-                                    nodesForBlocks.get(bloco).add(ip);
-                                }
-                            }
-                        }
-
-                        /*
-                        List<BlockPriority> blockPriorityList = blockAvailability
-                                .keySet()
-                                .stream()
-                                .map(BlockPriority::new)
-                                .collect(Collectors.toList());
-
-                        ConcurrentSkipListSet<BlockPriority> blockPrioritySet =
-                                new ConcurrentSkipListSet<>(Comparator.comparingInt(bp -> blockAvailability.get(bp.id).size()));
-                        blockPrioritySet.addAll(blockPriorityList);
-                        ConcurrentSkipListSet<NodePriority> nodePrioritySet = new ConcurrentSkipListSet<>(Comparator.comparingInt(a -> a.ping));
-
-
-                        for (String ip : ipsNodes) {
-
-                            try {
-
-                                InetAddress inetAddress = InetAddress.getByName(ip);
-                                long totalTime;
-
-                                // Perform the ping by sending an ICMP Echo Request
-                                long startTime = System.currentTimeMillis();
-                                if (inetAddress.isReachable(5000)) { // 5000 milliseconds timeout
-                                    long endTime = System.currentTimeMillis();
-                                    totalTime = endTime - startTime;
-                                    nodePrioritySet.add(new NodePriority(ip, (int) totalTime));
-                                } else {
-                                    nodePrioritySet.add(new NodePriority(ip, 5001));
-                                }
-                            } catch (Exception e) {
-                                System.err.println(e.getMessage());
-                            }
-                        }
-
-
-
-                        File foldertst = new File("node2/");
-                        File file = new File(foldertst, option[1]);
-
-                        // UDPTransferThread udpTransferThread = new UDPTransferThread(5001, blockAvailability, blockPrioritySet, nodePrioritySet, file, out, in);
-
-                        UDPTransferThread udpTransferThread = new UDPTransferThread(5001, file, nodesForBlocks);
-
-                        Thread thread = new Thread(udpTransferThread);
-
-                        thread.start();
-                        thread.join();
-
-                        /*
-                        for (int i = 0; i < nodosTotais; i++) {
-                            new Thread(udpTransferThread).start();
-                        }
-
-                        for (int i = 0; i < nodosTotais; i++) {
-                            new Thread(udpTransferThread).join();
-                        }
-
-                         */
 
 
                         break;
@@ -699,7 +597,7 @@ public class FS_Node {
                     //Send datagram
                     DatagramPacket ackPacket = new DatagramPacket(byteBuffer.array(), byteBuffer.array().length, senderAddress, senderPort);
 
-                    if (!blocksToReceive.contains(blockToReceive)) {
+                    if (!blocksToReceive.containsKey(blockToReceive)) {
                         socket.send(ackPacket);
                         return;
                     }

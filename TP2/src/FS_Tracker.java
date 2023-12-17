@@ -231,7 +231,7 @@ public class FS_Tracker {
                             //Go to filehash and copy each byte[] to hashes
                             for (int i = 0; i < blocos_quantidade; i++) {
                                 byte[] tempByte = new byte[20];
-                                System.arraycopy(tempByte, 0, file_hash.get(fileName).get(i), 0, 20);
+                                System.arraycopy(file_hash.get(fileName).get(i), 0, tempByte, 0, 20);
                                 hashes.add(tempByte);
                                 System.out.println(file_hash.get(fileName));
                             }
