@@ -686,6 +686,7 @@ public class FS_Node {
 
                     byte[] dataHashBytes = digest.digest();
 
+                    /*
                     if (blocksToReceive.get(blockToReceive) == dataHashBytes) {
                         blocksToReceive.remove(blockToReceive);
                         //Write data in file using RandomAccessFile
@@ -708,6 +709,27 @@ public class FS_Node {
 
                         socket.send(ackPacket);
                     }
+
+                     */
+
+                    try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
+                        // Set the file pointer to the desired offset
+                        randomAccessFile.seek(blockID * 500);
+                        // Write 500 bytes from the current offset
+                        randomAccessFile.write(actualData);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    //Send tcp message to tracker to update file info
+                    out.write(TPManager.updateMessage(file.getName(), blockID));
+                    out.flush();
+
+
+                    //Create a DatagramPacket to send data to ACK that the data was received
+                    //Put the name of the file on the datagram
+                    socket.send(ackPacket);
+
 
                 }
 
