@@ -611,11 +611,8 @@ public class FS_Node {
                     System.arraycopy(packet.getData(), 6 + size_name, actualData, 0, receivedLength - 6 - size_name);
 
 
-                    /*
                     MessageDigest digest = MessageDigest.getInstance("SHA-1");
                     digest.update(actualData, 0, actualData.length);
-
-
 
 
                     byte[] dataHashBytes = digest.digest();
@@ -633,8 +630,9 @@ public class FS_Node {
                             throw new RuntimeException(e);
                         }
 
+                        byte[] updateMessage = TPManager.updateMessage(file.getName(), blockID);
                         //Send tcp message to tracker to update file info
-                        out.write(TPManager.updateMessage(file.getName(), blockID));
+                        out.write(updateMessage);
                         out.flush();
 
 
@@ -643,29 +641,6 @@ public class FS_Node {
 
                         socket.send(ackPacket);
                     }
-
-                     */
-
-                    System.out.println("DATA QUE VAI SER ESCRITA" + Arrays.toString(actualData));
-
-                    try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
-                        // Set the file pointer to the desired offset
-                        randomAccessFile.seek(blockID * 500);
-                        // Write 500 bytes from the current offset
-                        randomAccessFile.write(actualData);
-                        blocksToReceive.remove(blockToReceive);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-
-                    //Send tcp message to tracker to update file info
-                    out.write(TPManager.updateMessage(file.getName(), blockID));
-                    out.flush();
-
-
-                    //Create a DatagramPacket to send data to ACK that the data was received
-                    //Put the name of the file on the datagram
-                    socket.send(ackPacket);
 
 
                 }
