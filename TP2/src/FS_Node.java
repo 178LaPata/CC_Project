@@ -697,7 +697,6 @@ public class FS_Node {
 
                     if (!blocksToReceive.contains(blockToReceive)) {
                         socket.send(ackPacket);
-                        System.out.println("fodeu");
                         return;
                     }
 
@@ -794,6 +793,23 @@ public class FS_Node {
         public BlockToReceive(String nameFile, int id) {
             this.nameFile = nameFile;
             this.id = id;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            BlockToReceive other = (BlockToReceive) obj;
+            return id == other.id && Objects.equals(nameFile, other.nameFile);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(nameFile, id);
         }
 
     }
