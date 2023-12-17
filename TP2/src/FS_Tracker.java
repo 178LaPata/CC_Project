@@ -90,8 +90,6 @@ public class FS_Tracker {
 
                             byte number_files = in.readByte();
 
-                            System.out.println(choice);
-
 
                             for (byte i = 0; i < number_files; i++) {
 
@@ -145,7 +143,7 @@ public class FS_Tracker {
                                         List<byte[]> tempList = new ArrayList<>();
                                         for (int id = 0; id < blocos_quantidade; id++) {
                                             byte[] tempByte = new byte[20];
-                                            System.arraycopy(tempByte, 0, sha1Encoding, id * 20, 20);
+                                            System.arraycopy(sha1Encoding, id * 20, tempByte, 0, 20);
                                             tempList.add(tempByte);
                                         }
                                         file_hash.put(name, tempList);
@@ -231,7 +229,6 @@ public class FS_Tracker {
                             //Go to filehash and copy each byte[] to hashes
                             for (byte[] hash : file_hash.get(fileName)){
                                 hashes.add(hash);
-                                System.out.println(Arrays.toString(hash));
                             }
 
                             for (String ip : ips) {
