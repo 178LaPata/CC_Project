@@ -48,7 +48,7 @@ public class FS_Node {
 
             DatagramSocket socketUDP = new DatagramSocket(9090);
 
-            UDPListener udpListener = new UDPListener(socketUDP, listOfFiles, blocksToSend, blocksToReceive, out);
+            UDPListener udpListener = new UDPListener(socketUDP, folder, blocksToSend, blocksToReceive, out);
             new Thread(udpListener).start();
 
 
@@ -164,21 +164,12 @@ public class FS_Node {
 
                         //Transfer blocks by order of priority
 
-                        // Specify the folder path and file name
-                        String folderPath = args[0];
-                        String fileName = option[1];
-
-                        // Combine folder path and file name to create a Path object
-                        Path filePath = Paths.get(folderPath, fileName);
-
-                        try {
-                            // Use createFile method to create the file
-                            Files.createFile(filePath);
-                            System.out.println("File created successfully at: " + filePath);
-                        } catch (IOException e) {
-                            // Handle exception if the file creation fails
-                            System.err.println("Error creating file: " + e.getMessage());
+                        //open file with name option[1] and create it if it doesnt exist
+                        File file = new File(folder, option[1]);
+                        if (!file.exists()) {
+                            file.createNewFile();
                         }
+
 
 
                         //Thread executor = Executors.newFixedThreadPool(10);
@@ -514,18 +505,18 @@ public class FS_Node {
 
         private DatagramSocket socket;
         private byte[] buffer;
-        private File[] listOfFiles;
+        private File folder;
         List<BlockToSend> blocksToSend;
         ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
         DataOutputStream out;
 
-        public UDPListener(DatagramSocket socket, File[] listOfFiles, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, DataOutputStream out) {
+        public UDPListener(DatagramSocket socket, File folder, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, DataOutputStream out) {
             try {
                 // Create a DatagramSocket to listen on the specified port
                 this.socket = socket;
                 // Set a buffer for receiving data
                 this.buffer = new byte[1024];
-                this.listOfFiles = listOfFiles;
+                this.folder = folder;
                 this.blocksToSend = blocksToSend;
                 this.blocksToReceive = blocksToReceive;
             } catch (Exception e) {
@@ -549,7 +540,7 @@ public class FS_Node {
                     // Receive data from the socket
                     socket.receive(packet);
 
-                    new Thread(new UDPDataHandler(socket, packet, listOfFiles, blocksToSend, blocksToReceive, out)).start();
+                    new Thread(new UDPDataHandler(socket, packet, folder, blocksToSend, blocksToReceive, out)).start();
 
                 }
                 catch (IOException e) {
@@ -570,16 +561,17 @@ public class FS_Node {
 
         private DatagramSocket socket;
         private DatagramPacket packet;
-        private File[] listOfFiles;
+        private File folder;
+
         List<BlockToSend> blocksToSend;
         ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
         DataOutputStream out;
 
 
-        public UDPDataHandler(DatagramSocket socket, DatagramPacket packet, File[] listOfFiles, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, DataOutputStream out) {
+        public UDPDataHandler(DatagramSocket socket, DatagramPacket packet, File folder, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, DataOutputStream out) {
             this.socket = socket;
             this.packet = packet;
-            this.listOfFiles = listOfFiles;
+            this.folder = folder;
             this.blocksToSend = blocksToSend;
             this.blocksToReceive = blocksToReceive;
             this.out = out;
@@ -598,8 +590,11 @@ public class FS_Node {
                 String name = new String(receivedData, 2, size_name);
                 int blockID = Serializer.fourBytesToInt(Arrays.copyOfRange(receivedData, 2 + size_name, 2 + size_name + 4));
 
+                if (folder.listFiles()==null)
+                    return;
+
                 File file = null;
-                for (File f : listOfFiles) {
+                for (File f : folder.listFiles()) {
                     // Check if the current file is the right name
                     if (f.getName().equals(name)) {
                         file = f;
