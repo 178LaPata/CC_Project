@@ -445,7 +445,7 @@ public class FS_Node {
                                     int attempt;
                                     for (attempt = 0; attempt < 3; attempt++) {
                                         socket.send(requestPacket);
-                                        Thread.sleep(5000);
+                                        Thread.sleep(1000);
                                         if (blocksToReceive.get(blockToReceive) == null) {
                                             blockPrioritySet.remove(blockPriority);
                                             break;
@@ -606,9 +606,11 @@ public class FS_Node {
 
             try {
 
-                byte[] receivedData = packet.getData();
+                byte[] test = new byte[packet.getLength()];
+                System.arraycopy(packet.getData(),0,test,0,packet.getLength());
+                System.out.println(Arrays.toString(test));
 
-                System.out.println(Arrays.toString(receivedData));
+                byte[] receivedData = packet.getData();
 
                 InetAddress senderAddress = packet.getAddress();
                 int senderPort = packet.getPort();
