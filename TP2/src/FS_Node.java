@@ -742,6 +742,8 @@ public class FS_Node {
 
                      */
 
+                    System.out.println("DATA QUE VAI SER ESCRITA" + Arrays.toString(actualData));
+
                     try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
                         // Set the file pointer to the desired offset
                         randomAccessFile.seek(blockID * 500);
