@@ -2,6 +2,9 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
@@ -161,10 +164,20 @@ public class FS_Node {
 
                         //Transfer blocks by order of priority
 
-                        //open file with name option[1] and create it if it doesnt exist
-                        File file = new File(folder, option[1]);
-                        if (!file.exists()) {
-                            file.createNewFile();
+                        // Specify the folder path and file name
+                        String folderPath = args[0];
+                        String fileName = option[1];
+
+                        // Combine folder path and file name to create a Path object
+                        Path filePath = Paths.get(folderPath, fileName);
+
+                        try {
+                            // Use createFile method to create the file
+                            Files.createFile(filePath);
+                            System.out.println("File created successfully at: " + filePath);
+                        } catch (IOException e) {
+                            // Handle exception if the file creation fails
+                            System.err.println("Error creating file: " + e.getMessage());
                         }
 
 
