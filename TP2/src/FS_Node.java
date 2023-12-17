@@ -618,7 +618,7 @@ public class FS_Node {
                     byte[] dataHashBytes = digest.digest();
 
 
-                    if (blocksToReceive.get(blockToReceive) == dataHashBytes) {
+                    if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
                         blocksToReceive.remove(blockToReceive);
                         //Write data in file using RandomAccessFile
                         try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
