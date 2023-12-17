@@ -442,6 +442,7 @@ public class FS_Node {
                 this.folder = folder;
                 this.blocksToSend = blocksToSend;
                 this.blocksToReceive = blocksToReceive;
+                this.out = out;
             } catch (Exception e) {
                 e.printStackTrace();
             }
