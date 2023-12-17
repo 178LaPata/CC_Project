@@ -105,7 +105,6 @@ public class FS_Node {
                             blocksToReceive.put(new BlockToReceive(option[1], i), hash);
                         }
 
-                        System.out.println(blocksToReceive);
 
                         //The rest of the message is the list of nodes
                         //Each node is represented by 4 bytes for the IP and 4 bytes for the number of blocks available

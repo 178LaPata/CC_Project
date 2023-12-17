@@ -140,9 +140,12 @@ public class TPManager {
             }
         }
 
+
         ByteBuffer byteBuffer = ByteBuffer.allocate(sizeEncoding);
-        for (byte[] bytes : listSHA1)
+        for (byte[] bytes : listSHA1) {
             byteBuffer.put(bytes);
+            System.out.println(Arrays.toString(bytes));
+        }
 
 
         return byteBuffer.array();
