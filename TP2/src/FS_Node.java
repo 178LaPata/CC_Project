@@ -103,6 +103,7 @@ public class FS_Node {
                             byte[] hash = new byte[20];
                             in.readFully(hash, 0, 20);
                             blocksToReceive.put(new BlockToReceive(option[1], i), hash);
+                            System.out.println(blocksToReceive);
                         }
 
                         //The rest of the message is the list of nodes
@@ -670,6 +671,7 @@ public class FS_Node {
 
                     if (!blocksToReceive.contains(blockToReceive)) {
                         socket.send(ackPacket);
+                        System.out.println("fodeu");
                         return;
                     }
 
@@ -684,9 +686,12 @@ public class FS_Node {
                     MessageDigest digest = MessageDigest.getInstance("SHA-1");
                     digest.update(actualData, 0, actualData.length);
 
-                    byte[] dataHashBytes = digest.digest();
 
                     /*
+
+                    byte[] dataHashBytes = digest.digest();
+
+
                     if (blocksToReceive.get(blockToReceive) == dataHashBytes) {
                         blocksToReceive.remove(blockToReceive);
                         //Write data in file using RandomAccessFile
