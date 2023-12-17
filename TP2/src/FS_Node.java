@@ -65,15 +65,17 @@ public class FS_Node {
                     case "GET": {
 
                         //Verificar se nodo já tem o ficheiro
-                        boolean exists = false;
-                        for (File f : listOfFiles) {
-                            if (f.getName().equals(option[1])) {
-                                exists = true;
-                                break;
+                        if (listOfFiles != null) {
+                            boolean exists = false;
+                            for (File f : listOfFiles) {
+                                if (f.getName().equals(option[1])) {
+                                    exists = true;
+                                    break;
+                                }
                             }
+                            if (exists)
+                                break;
                         }
-                        if (exists)
-                            break;
 
 
                         out.write(TPManager.getFileMessage(option[1]));
