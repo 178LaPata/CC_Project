@@ -68,6 +68,7 @@ public class FS_Node {
 
                     case "GET": {
 
+
                         //Verificar se nodo já tem o ficheiro
                         if (folder.listFiles() != null) {
                             boolean exists = false;
@@ -80,6 +81,7 @@ public class FS_Node {
                             if (exists)
                                 break;
                         }
+
 
                         out.write(TPManager.getFileMessage(option[1]));
                         out.flush();
@@ -96,9 +98,6 @@ public class FS_Node {
 
                         int totalBlocks = in.readInt();
 
-                        System.out.println(totalBlocks);
-
-
                         //Concurrent Set of IPS
                         ConcurrentSkipListSet<String> ipNodes = new ConcurrentSkipListSet<>();
 
@@ -111,6 +110,9 @@ public class FS_Node {
                             blocksToReceive.put(new BlockToReceive(option[1], blockID), hash);
                             blockNodes.put(blockID, new ArrayList<>());
                         }
+
+                        for (byte[] fds : blocksToReceive.values())
+                            System.out.println(Arrays.toString(fds));
 
 
                         for (int node = 0; node < totalNodes; node++) {
@@ -138,7 +140,7 @@ public class FS_Node {
                         //open file with name option[1] and create it if it doesnt exist
                         File file = new File(folder, option[1]);
                         if (!file.exists()) {
-                            if (!file.createNewFile()){
+                            if (!file.createNewFile()) {
                                 System.out.println("Erro ao criar ficheiro");
                                 return;
                             }
@@ -171,6 +173,7 @@ public class FS_Node {
                         //checkNode.interrupt();
 
                         System.out.println("Transferência concluída");
+
 
                         break;
                     }
@@ -220,8 +223,7 @@ public class FS_Node {
             e.printStackTrace();
         } catch (NoSuchAlgorithmException | InterruptedException e) {
             throw new RuntimeException(e);
-        }
-        finally {
+        } finally {
             System.out.println("Terminando Programa...");
             if (socket != null) {
                 try {
@@ -382,7 +384,7 @@ public class FS_Node {
 
         }
 
-        public void stopThread(){
+        public void stopThread() {
             stop = true;
             this.interrupt();
         }
@@ -482,7 +484,7 @@ public class FS_Node {
                 int size_name = receivedData[1];
                 String name = new String(receivedData, 2, size_name);
                 byte[] blockIDBytes = new byte[4];
-                System.arraycopy(receivedData,2+size_name, blockIDBytes, 0, 4);
+                System.arraycopy(receivedData, 2 + size_name, blockIDBytes, 0, 4);
                 int blockID = Serializer.fourBytesToInt(blockIDBytes);
 
                 if (folder.listFiles() == null)
@@ -583,24 +585,24 @@ public class FS_Node {
                     byte[] dataHashBytes = digest.digest();
 
                     //if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
-                        blocksToReceive.remove(blockToReceive);
-                        //Write data in file using RandomAccessFile
-                        try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
-                            // Set the file pointer to the desired offset
-                            randomAccessFile.seek(blockID * 500);
-                            // Write 500 bytes from the current offset
-                            randomAccessFile.write(actualData);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
+                    blocksToReceive.remove(blockToReceive);
+                    //Write data in file using RandomAccessFile
+                    try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
+                        // Set the file pointer to the desired offset
+                        randomAccessFile.seek(blockID * 500);
+                        // Write 500 bytes from the current offset
+                        randomAccessFile.write(actualData);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
 
-                        byte[] updateMessage = TPManager.updateMessage(file.getName(), blockID);
+                    byte[] updateMessage = TPManager.updateMessage(file.getName(), blockID);
 
-                        //Send tcp message to tracker to update file info
-                        out.write(updateMessage);
-                        out.flush();
+                    //Send tcp message to tracker to update file info
+                    out.write(updateMessage);
+                    out.flush();
 
-                        socket.send(ackPacket);
+                    socket.send(ackPacket);
                     //}
 
 

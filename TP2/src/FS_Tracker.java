@@ -137,8 +137,8 @@ public class FS_Tracker {
                                 if (sha1Encoding != null) {
                                     if (!fileHashes.containsKey(fileName)) {
                                         List<byte[]> tempHashesList = new ArrayList<>();
-                                        byte[] tempHash = new byte[20];
                                         for (int blockID = 0; blockID < blockAmount; blockID++) {
+                                            byte[] tempHash = new byte[20];
                                             System.arraycopy(sha1Encoding, blockID * 20, tempHash, 0, 20);
                                             tempHashesList.add(tempHash);
                                         }
