@@ -480,7 +480,7 @@ public class FS_Node {
 
                 int size_name = receivedData[1];
                 String name = new String(receivedData, 2, size_name);
-                int blockID = Serializer.fourBytesToInt(Arrays.copyOfRange(receivedData, 2 + size_name, 2 + size_name + 4));
+                int blockID = Serializer.fourBytesToInt(Arrays.copyOfRange(receivedData, 3 + size_name, 3 + size_name + 4));
 
                 if (folder.listFiles() == null)
                     return;
@@ -517,9 +517,6 @@ public class FS_Node {
 
                             byte[] data = new byte[bytesread];
                             System.arraycopy(dataBuffer, 0, data, 0, bytesread);
-
-                            System.out.println("BYTES COPIADOS FILES:" + Arrays.toString(dataBuffer));
-                            System.out.println("BYTES A MAIS REMOVIDOS:" + Arrays.toString(data));
 
                             ByteBuffer msg_buffer = ByteBuffer.allocate(6 + size_name + data.length);
                             msg_buffer.put((byte) 1);
@@ -581,10 +578,6 @@ public class FS_Node {
 
 
                     byte[] dataHashBytes = digest.digest();
-
-                    System.out.println("HASH RECEBIDA:" + Arrays.toString(dataHashBytes));
-                    System.out.println("HASH ORIGINAL:" + Arrays.toString(blocksToReceive.get(blockToReceive)));
-
 
                     if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
                         blocksToReceive.remove(blockToReceive);
