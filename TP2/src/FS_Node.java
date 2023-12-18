@@ -173,7 +173,7 @@ public class FS_Node {
                             threads[i].join();
                         }
 
-                        checkNode.interrupt();
+                        checkNode.stopThread();
 
                         System.out.println("Transferência concluída");
 

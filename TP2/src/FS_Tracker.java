@@ -194,7 +194,7 @@ public class FS_Tracker {
 
                         //LIST FILES AVAILABLE
                         case 3: {
-                            byte[] message = TPManager.filesAvailableMessage(fileHashes.keySet());
+                            byte[] message = TPManager.filesAvailableMessage(fileLocations.keySet());
                             out.write(message);
                             out.flush();
 
