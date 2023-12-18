@@ -129,6 +129,9 @@ public class TPManager {
 
 
             while ((bytesRead = fis.read(buffer)) != -1) {
+
+                System.out.println(Arrays.toString(buffer));
+
                 digest.update(buffer, 0, bytesRead);
                 hashesList.add(digest.digest());
                 sizeEncoding += 20;
