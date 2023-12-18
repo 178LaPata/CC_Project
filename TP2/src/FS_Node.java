@@ -584,26 +584,26 @@ public class FS_Node {
 
                     byte[] dataHashBytes = digest.digest();
 
-                    //if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
-                    blocksToReceive.remove(blockToReceive);
-                    //Write data in file using RandomAccessFile
-                    try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
-                        // Set the file pointer to the desired offset
-                        randomAccessFile.seek(blockID * 500);
-                        // Write 500 bytes from the current offset
-                        randomAccessFile.write(actualData);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                    if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
+                        blocksToReceive.remove(blockToReceive);
+                        //Write data in file using RandomAccessFile
+                        try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
+                            // Set the file pointer to the desired offset
+                            randomAccessFile.seek(blockID * 500);
+                            // Write 500 bytes from the current offset
+                            randomAccessFile.write(actualData);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        byte[] updateMessage = TPManager.updateMessage(file.getName(), blockID);
+
+                        //Send tcp message to tracker to update file info
+                        out.write(updateMessage);
+                        out.flush();
+
+                        socket.send(ackPacket);
                     }
-
-                    byte[] updateMessage = TPManager.updateMessage(file.getName(), blockID);
-
-                    //Send tcp message to tracker to update file info
-                    out.write(updateMessage);
-                    out.flush();
-
-                    socket.send(ackPacket);
-                    //}
 
 
                 } else if (receivedData[0] == 2) {
