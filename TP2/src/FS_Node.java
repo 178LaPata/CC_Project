@@ -581,7 +581,7 @@ public class FS_Node {
 
                     byte[] dataHashBytes = digest.digest();
 
-                    if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
+                    //if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
                         blocksToReceive.remove(blockToReceive);
                         //Write data in file using RandomAccessFile
                         try (RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
@@ -600,7 +600,7 @@ public class FS_Node {
                         out.flush();
 
                         socket.send(ackPacket);
-                    }
+                    //}
 
 
                 } else if (receivedData[0] == 2) {
