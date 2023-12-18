@@ -96,6 +96,7 @@ public class FS_Node {
 
                         int totalBlocks = in.readInt();
 
+                        System.out.println(totalBlocks);
 
 
                         //Concurrent Set of IPS
