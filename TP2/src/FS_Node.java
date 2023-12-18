@@ -6,6 +6,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.stream.Collectors;
 
 
@@ -67,7 +69,6 @@ public class FS_Node {
                 switch (option[0]) {
 
                     case "GET": {
-
 
                         //Verificar se nodo já tem o ficheiro
                         if (folder.listFiles() != null) {
@@ -161,11 +162,13 @@ public class FS_Node {
 
                         ConcurrentSkipListSet<String> ipsToTest = new ConcurrentSkipListSet<>();
 
+                        AtomicInteger blocksTransferedAtomic = new AtomicInteger(0);
 
                         CheckNode checkNode = new CheckNode(ipNodes, ipsToTest, out, in);
                         new Thread(checkNode).start();
 
-                        UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPriorityList, ipNodes, blockNodes, blocksToReceive, ipsToTest);
+                        UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPriorityList, ipNodes,
+                                blockNodes, blocksToReceive, ipsToTest, blocksTransferedAtomic, totalBlocks);
                         Thread[] threads = new Thread[totalNodes];
 
                         for (int i = 0; i < totalNodes; i++) {
@@ -256,11 +259,14 @@ public class FS_Node {
         private ConcurrentHashMap<Integer, List<String>> nodesForBlocks;
         private ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
         private ConcurrentSkipListSet<String> ipsToTest;
+        private AtomicInteger blocksTransferedAtomic;
+        private int totalBlocks;
 
 
         public UDPRequestBlock(DatagramSocket socket, String fileName, CopyOnWriteArrayList<BlockPriority> blockPriorityList,
                                ConcurrentSkipListSet<String> ipsNodes, ConcurrentHashMap<Integer, List<String>> nodesForBlocks,
-                               ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, ConcurrentSkipListSet<String> ipsToTest) {
+                               ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, ConcurrentSkipListSet<String> ipsToTest,
+                               AtomicInteger blocksTransferedAtomic, int totalBlocks) {
             try {
                 this.socket = socket;
                 this.fileName = fileName;
@@ -269,6 +275,8 @@ public class FS_Node {
                 this.nodesForBlocks = nodesForBlocks;
                 this.blocksToReceive = blocksToReceive;
                 this.ipsToTest = ipsToTest;
+                this.blocksTransferedAtomic = blocksTransferedAtomic;
+                this.totalBlocks = totalBlocks;
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -319,6 +327,8 @@ public class FS_Node {
                                         Thread.sleep(1000);
                                         if (!blocksToReceive.containsKey(blockToReceive)) {
                                             blockPriorityList.remove(blockPriority);
+                                            blocksTransferedAtomic.incrementAndGet();
+                                            System.out.println(blocksTransferedAtomic + "/" + totalBlocks);
                                             break;
                                         }
                                     }
