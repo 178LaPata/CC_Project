@@ -78,10 +78,14 @@ public class FS_Node {
                                     break;
                                 }
                             }
-                            if (exists)
+                            if (exists){
+                                System.out.println("Ficheiro já existe!");
                                 break;
+                            }
+
                         }
 
+                        System.out.println("A iniciar transferência!");
 
                         out.write(TPManager.getFileMessage(option[1]));
                         out.flush();
@@ -477,13 +481,8 @@ public class FS_Node {
 
                 byte[] receivedData = packet.getData();
 
-                byte[] test = new byte[packet.getLength()];
-                System.arraycopy(receivedData, 0, test, 0, packet.getLength());
-                System.out.println(Arrays.toString(test));
-
                 InetAddress senderAddress = packet.getAddress();
                 int senderPort = packet.getPort();
-
 
                 int size_name = receivedData[1];
                 String name = new String(receivedData, 2, size_name);

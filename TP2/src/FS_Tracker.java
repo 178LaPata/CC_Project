@@ -303,6 +303,7 @@ public class FS_Tracker {
                                     locations.remove(ipNode);
                                     if (locations.isEmpty()) {
                                         fileLocations.remove(fileInfo.getNome());
+                                        fileHashes.remove(fileInfo.getNome());
                                     }
                                 }
                             }
