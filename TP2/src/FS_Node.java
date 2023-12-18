@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 public class FS_Node {
 
+
     public static void main(String[] args) {
 
         Socket socket = null;
@@ -516,6 +517,9 @@ public class FS_Node {
 
                             byte[] data = new byte[bytesread];
                             System.arraycopy(dataBuffer, 0, data, 0, bytesread);
+
+                            System.out.println("BYTES COPIADOS FILES:" + Arrays.toString(dataBuffer));
+                            System.out.println("BYTES A MAIS REMOVIDOS:" + Arrays.toString(data));
 
                             ByteBuffer msg_buffer = ByteBuffer.allocate(6 + size_name + data.length);
                             msg_buffer.put((byte) 1);
