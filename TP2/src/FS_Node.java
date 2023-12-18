@@ -156,10 +156,10 @@ public class FS_Node {
 
 
                         ConcurrentSkipListSet<String> ipsToTest = new ConcurrentSkipListSet<>();
-                        
 
-                        //CheckNode checkNode = new CheckNode(ipNodes, ipsToTest, out, in);
-                        //new Thread(checkNode).start();
+
+                        CheckNode checkNode = new CheckNode(ipNodes, ipsToTest, out, in);
+                        new Thread(checkNode).start();
 
                         UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPriorityList, ipNodes, blockNodes, blocksToReceive, ipsToTest);
                         Thread[] threads = new Thread[totalNodes];
@@ -173,7 +173,7 @@ public class FS_Node {
                             threads[i].join();
                         }
 
-                        //checkNode.interrupt();
+                        checkNode.interrupt();
 
                         System.out.println("Transferência concluída");
 
