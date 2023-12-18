@@ -151,10 +151,8 @@ public class FS_Node {
                         //Transfer blocks by order of priority
 
 
-
-
-                        CheckNode checkNode = new CheckNode(ipNodes, ipsToTest, out, in);
-                        new Thread(checkNode).start();
+                        //CheckNode checkNode = new CheckNode(ipNodes, ipsToTest, out, in);
+                        //new Thread(checkNode).start();
 
                         UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipNodes, blockNodes, blocksToReceive, ipsToTest);
                         Thread[] threads = new Thread[totalNodes];
@@ -168,7 +166,7 @@ public class FS_Node {
                             threads[i].join();
                         }
 
-                        checkNode.interrupt();
+                        //checkNode.interrupt();
 
                         System.out.println("Transferência concluída");
 
@@ -243,9 +241,9 @@ public class FS_Node {
         private String fileName;
         private ConcurrentSkipListSet<BlockPriority> blockPrioritySet;
         private ConcurrentSkipListSet<String> ipsNodes;
-        ConcurrentHashMap<Integer, List<String>> nodesForBlocks;
-        ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
-        ConcurrentSkipListSet<String> ipsToTest;
+        private ConcurrentHashMap<Integer, List<String>> nodesForBlocks;
+        private ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
+        private ConcurrentSkipListSet<String> ipsToTest;
 
 
         public UDPRequestBlock(DatagramSocket socket, String fileName, ConcurrentSkipListSet<BlockPriority> blockPrioritySet,
@@ -344,11 +342,12 @@ public class FS_Node {
 
     public static class CheckNode extends Thread {
 
-        ConcurrentSkipListSet<String> ipsNodes;
-        ConcurrentSkipListSet<String> ipsToTest;
-        DataOutputStream out;
-        DataInputStream in;
+        private final ConcurrentSkipListSet<String> ipsNodes;
+        private final ConcurrentSkipListSet<String> ipsToTest;
+        private final DataOutputStream out;
+        private final DataInputStream in;
 
+        private volatile boolean stop = false;
 
         public CheckNode(ConcurrentSkipListSet<String> ipsNodes, ConcurrentSkipListSet<String> ipsToTest, DataOutputStream out, DataInputStream in) {
             this.ipsNodes = ipsNodes;
@@ -360,7 +359,7 @@ public class FS_Node {
         @Override
         public void run() {
 
-            while (true) {
+            while (stop) {
 
                 for (String ip : ipsToTest) {
 
@@ -381,6 +380,11 @@ public class FS_Node {
 
         }
 
+        public void stopThread(){
+            stop = true;
+            this.interrupt();
+        }
+
     }
 
 
@@ -389,9 +393,9 @@ public class FS_Node {
         private DatagramSocket socket;
         private byte[] buffer;
         private File folder;
-        List<BlockToSend> blocksToSend;
-        ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
-        DataOutputStream out;
+        private List<BlockToSend> blocksToSend;
+        private ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
+        private DataOutputStream out;
 
         public UDPListener(DatagramSocket socket, File folder, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, DataOutputStream out) {
             try {
@@ -444,10 +448,9 @@ public class FS_Node {
         private final DatagramSocket socket;
         private final DatagramPacket packet;
         private final File folder;
-
-        List<BlockToSend> blocksToSend;
-        ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
-        DataOutputStream out;
+        private final List<BlockToSend> blocksToSend;
+        private final ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
+        private final DataOutputStream out;
 
 
         public UDPDataHandler(DatagramSocket socket, DatagramPacket packet, File folder, List<BlockToSend> blocksToSend, ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, DataOutputStream out) {
@@ -614,9 +617,9 @@ public class FS_Node {
 
     public static class BlockToSend {
 
-        String nameFile;
-        int id;
-        String ip;
+        private final String nameFile;
+        private final int id;
+        private final String ip;
 
         public BlockToSend(String nameFile, int id, String ip) {
             this.nameFile = nameFile;
@@ -647,8 +650,8 @@ public class FS_Node {
 
     public static class BlockToReceive {
 
-        String nameFile;
-        int id;
+        private final String nameFile;
+        private final int id;
 
         public BlockToReceive(String nameFile, int id) {
             this.nameFile = nameFile;
@@ -676,8 +679,8 @@ public class FS_Node {
 
 
     public static class BlockPriority {
-        int id;
-        boolean available;
+        private int id;
+        private boolean available;
 
         private BlockPriority(int id) {
             this.id = id;
