@@ -628,6 +628,8 @@ public class FS_Node {
 
 
             } catch (Exception e) {
+                if (socket.isClosed())
+                    return;
                 e.printStackTrace();
             }
         }
