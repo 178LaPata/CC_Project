@@ -578,6 +578,10 @@ public class FS_Node {
 
                     byte[] dataHashBytes = digest.digest();
 
+                    System.out.println("HASH RECEBIDA:" + Arrays.toString(dataHashBytes));
+                    System.out.println("HASH ORIGINAL:" + Arrays.toString(blocksToReceive.get(blockToReceive)));
+
+
                     if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
                         blocksToReceive.remove(blockToReceive);
                         //Write data in file using RandomAccessFile
