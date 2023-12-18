@@ -83,101 +83,94 @@ public class FS_Node {
                         out.write(TPManager.getFileMessage(option[1]));
                         out.flush();
 
-                        byte[] nodosTotaisBytes = new byte[2];
-                        in.readFully(nodosTotaisBytes, 0, 2);
-                        int nodosTotais = Serializer.twoBytesToInt(nodosTotaisBytes);
+                        byte[] totalNodesBytes = new byte[2];
+                        in.readFully(totalNodesBytes, 0, 2);
+                        int totalNodes = Serializer.twoBytesToInt(totalNodesBytes);
 
-                        if (nodosTotais == 0) {
+                        if (totalNodes == 0) {
                             System.out.println("Ficheiro não existe!");
                             break;
                         }
 
 
-                        byte[] blocosTotaisBytes = new byte[4];
-                        in.readFully(blocosTotaisBytes, 0, 4);
-                        int blocosTotais = Serializer.fourBytesToInt(blocosTotaisBytes);
+                        int totalBlocks = in.readInt();
 
-
-                        for (int i = 0; i < blocosTotais; i++) {
-                            byte[] hash = new byte[20];
-                            in.readFully(hash, 0, 20);
-                            blocksToReceive.put(new BlockToReceive(option[1], i), hash);
-                        }
 
 
                         //Concurrent Set of IPS
-                        ConcurrentSkipListSet<String> ipsNodes = new ConcurrentSkipListSet<>();
+                        ConcurrentSkipListSet<String> ipNodes = new ConcurrentSkipListSet<>();
 
-                        ConcurrentHashMap<Integer, List<String>> nodesForBlocks = new ConcurrentHashMap<>();
+                        ConcurrentHashMap<Integer, List<String>> blockNodes = new ConcurrentHashMap<>();
 
-                        for (int i = 0; i < blocosTotais; i++) {
-                            nodesForBlocks.put(i, new ArrayList<>());
+
+                        for (int blockID = 0; blockID < totalBlocks; blockID++) {
+                            byte[] hash = new byte[20];
+                            in.readFully(hash, 0, 20);
+                            blocksToReceive.put(new BlockToReceive(option[1], blockID), hash);
+                            blockNodes.put(blockID, new ArrayList<>());
                         }
 
-                        for (int i = 0; i < nodosTotais; i++) {
+
+                        for (int node = 0; node < totalNodes; node++) {
 
                             byte[] ipBytes = new byte[4];
                             in.readFully(ipBytes, 0, 4);
                             String ip = InetAddress.getByAddress(ipBytes).getHostAddress();
 
+                            int blocksAvailableAmount = in.readInt();
 
-                            byte[] qtBlocosDisponiveisBytes = new byte[4];
-                            in.readFully(qtBlocosDisponiveisBytes, 0, 4);
-                            int qtBlocosDisponiveis = Serializer.fourBytesToInt(qtBlocosDisponiveisBytes);
-
-
-                            ipsNodes.add(ip);
-                            if (qtBlocosDisponiveis == 0) {
-                                for (int b = 0; b < blocosTotais; b++) {
-                                    //blockAvailability.get(b).add(ip);
-                                    nodesForBlocks.get(b).add(ip);
+                            ipNodes.add(ip);
+                            if (blocksAvailableAmount == 0) {
+                                for (int blockID = 0; blockID < totalBlocks; blockID++) {
+                                    blockNodes.get(blockID).add(ip);
                                 }
                             } else {
-                                for (int b = 0; b < qtBlocosDisponiveis; b++) {
-                                    byte[] blocoIDBytes = new byte[4];
-                                    in.readFully(blocoIDBytes, 0, 4);
-                                    int bloco = Serializer.fourBytesToInt(blocoIDBytes);
-                                    //blockAvailability.get(bloco).add(ip);
-                                    nodesForBlocks.get(bloco).add(ip);
+                                for (int bI = 0; bI < blocksAvailableAmount; bI++) {
+                                    int bloco = in.readInt();
+                                    blockNodes.get(bloco).add(ip);
                                 }
                             }
                         }
 
 
+                        //open file with name option[1] and create it if it doesnt exist
+                        File file = new File(folder, option[1]);
+                        if (!file.exists()) {
+                            if (!file.createNewFile()){
+                                System.out.println("Erro ao criar ficheiro");
+                                return;
+                            }
+                        }
+
                         //Concurrent Set of BlockPriority
-                        ConcurrentSkipListSet<BlockPriority> blockPrioritySet = new ConcurrentSkipListSet<>(Comparator.comparingInt(bp -> nodesForBlocks.get(bp.id).size()));
-                        blockPrioritySet.addAll(nodesForBlocks.keySet().stream().map(BlockPriority::new).collect(Collectors.toList()));
+                        ConcurrentSkipListSet<BlockPriority> blockPrioritySet = new ConcurrentSkipListSet<>(Comparator.comparingInt(bp -> blockNodes.get(bp.id).size()));
+                        blockPrioritySet.addAll(blockNodes.keySet().stream().map(BlockPriority::new).collect(Collectors.toList()));
 
                         ConcurrentSkipListSet<String> ipsToTest = new ConcurrentSkipListSet<>();
 
                         //Transfer blocks by order of priority
 
-                        //open file with name option[1] and create it if it doesnt exist
-                        File file = new File(folder, option[1]);
-                        if (!file.exists()) {
-                            file.createNewFile();
-                        }
 
 
-                        CheckNode checkNode = new CheckNode(ipsNodes, ipsToTest, out, in);
+
+                        CheckNode checkNode = new CheckNode(ipNodes, ipsToTest, out, in);
                         new Thread(checkNode).start();
 
-                        UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive, ipsToTest);
-                        Thread[] threads = new Thread[nodosTotais];
+                        UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipNodes, blockNodes, blocksToReceive, ipsToTest);
+                        Thread[] threads = new Thread[totalNodes];
 
-                        for (int i = 0; i < nodosTotais; i++) {
+                        for (int i = 0; i < totalNodes; i++) {
                             threads[i] = new Thread(udpRequestBlock);
                             threads[i].start();
                         }
 
-                        for (int i = 0; i < nodosTotais; i++) {
+                        for (int i = 0; i < totalNodes; i++) {
                             threads[i].join();
                         }
 
-                        System.out.println("Transferência concluída");
-
                         checkNode.interrupt();
 
+                        System.out.println("Transferência concluída");
 
                         break;
                     }
@@ -186,9 +179,9 @@ public class FS_Node {
                     case "FILES": {
                         out.writeByte(3);
                         out.flush();
-                        byte[] numberFiles_bytes = new byte[2];
-                        in.readFully(numberFiles_bytes, 0, 2);
-                        int numberFiles = Serializer.twoBytesToInt(numberFiles_bytes);
+                        byte[] numberFilesBytes = new byte[2];
+                        in.readFully(numberFilesBytes, 0, 2);
+                        int numberFiles = Serializer.twoBytesToInt(numberFilesBytes);
                         if (numberFiles == 0) {
                             System.out.println("Não existem ficheiros disponíveis para transferência");
                             break;
@@ -196,9 +189,9 @@ public class FS_Node {
                         List<String> namesList = new ArrayList<>();
                         for (int i = 0; i < numberFiles; i++) {
                             int nameSize = in.readByte();
-                            byte[] name_byte = new byte[nameSize];
-                            in.readFully(name_byte, 0, nameSize);
-                            String name = new String(name_byte, StandardCharsets.UTF_8);
+                            byte[] nameBytes = new byte[nameSize];
+                            in.readFully(nameBytes, 0, nameSize);
+                            String name = new String(nameBytes, StandardCharsets.UTF_8);
                             namesList.add(name);
                         }
                         System.out.println(namesList);
@@ -348,8 +341,7 @@ public class FS_Node {
 
     }
 
-    //Create thread that will do something everytime ipsToTest is updated
-    //If ip is not available, remove from ipsNodes
+
     public static class CheckNode extends Thread {
 
         ConcurrentSkipListSet<String> ipsNodes;
@@ -372,7 +364,6 @@ public class FS_Node {
 
                 for (String ip : ipsToTest) {
 
-                    //send message thru out to tracker asking if ip is still available
                     try {
                         out.write(TPManager.checkNodeMessage(ip));
                         out.flush();
@@ -440,7 +431,6 @@ public class FS_Node {
                     if (socket.isClosed()) {
                         return;
                     }
-                    // Otherwise print the error
                     e.printStackTrace();
                 }
             }
@@ -451,9 +441,9 @@ public class FS_Node {
     //Create UPDRequestHandler class
     public static class UDPDataHandler implements Runnable {
 
-        private DatagramSocket socket;
-        private DatagramPacket packet;
-        private File folder;
+        private final DatagramSocket socket;
+        private final DatagramPacket packet;
+        private final File folder;
 
         List<BlockToSend> blocksToSend;
         ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
@@ -585,10 +575,6 @@ public class FS_Node {
 
                     byte[] dataHashBytes = digest.digest();
 
-                    System.out.println("SHA ORIGINAL:" + Arrays.toString(blocksToReceive.get(blockToReceive)));
-
-                    System.out.println("SHA RECEBIDO:" + Arrays.toString(dataHashBytes));
-
                     if (Arrays.equals(blocksToReceive.get(blockToReceive), dataHashBytes)) {
                         blocksToReceive.remove(blockToReceive);
                         //Write data in file using RandomAccessFile
@@ -602,13 +588,10 @@ public class FS_Node {
                         }
 
                         byte[] updateMessage = TPManager.updateMessage(file.getName(), blockID);
+
                         //Send tcp message to tracker to update file info
                         out.write(updateMessage);
                         out.flush();
-
-
-                        //Create a DatagramPacket to send data to ACK that the data was received
-                        //Put the name of the file on the datagram
 
                         socket.send(ackPacket);
                     }
@@ -701,21 +684,6 @@ public class FS_Node {
             this.available = true;
         }
     }
-
-    /*
-    public static class NodePriority {
-        String ip;
-        int ping;
-        boolean available;
-
-        private NodePriority(String ip, int ping) {
-            this.ip = ip;
-            this.ping = ping;
-            available = true;
-        }
-    }
-
-     */
 
 
 }

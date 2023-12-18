@@ -5,7 +5,7 @@ public class FileInfo implements Comparable<FileInfo> {
 
     private final String nome;
     private final int blockAmount;
-    private Set<Integer> blocksAvailable;
+    private Set<Integer> blocksAvailable = null;
     private boolean complete = false;
 
     public FileInfo(String nome, int blockAmount) {
@@ -27,10 +27,6 @@ public class FileInfo implements Comparable<FileInfo> {
         return nome;
     }
 
-    public int getBlockAmount() {
-        return blockAmount;
-    }
-
     public boolean isComplete() {
         return complete;
     }
@@ -41,23 +37,9 @@ public class FileInfo implements Comparable<FileInfo> {
 
 
     @Override
-    public String toString() {
-        if (blocksAvailable == null)
-            return this.nome + ";" + this.blockAmount;
-        else
-            return this.nome + ";" + this.blockAmount + ";" + this.blocksAvailable;
-    }
-
-
-    @Override
     public int compareTo(FileInfo other) {
         return this.nome.compareTo(other.nome);
     }
-
-
-
-
-
 
 
     public byte[] fileInfoToBytes() {
@@ -96,6 +78,7 @@ public class FileInfo implements Comparable<FileInfo> {
 
         return buffer.array();
     }
+
 
     public void addBlocoDisponivel(int bloco){
         blocksAvailable.add(bloco);

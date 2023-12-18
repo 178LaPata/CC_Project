@@ -234,8 +234,8 @@ public class FS_Tracker {
                                     ByteBuffer fileInfoByteBuffer = ByteBuffer.allocate(4 + 4);
                                     byte[] ipBytes = InetAddress.getByName(ip).getAddress();
                                     fileInfoByteBuffer.put(ipBytes);
-                                    byte[] blockAmmount = new byte[4];
-                                    fileInfoByteBuffer.put(blockAmmount);
+                                    byte[] blockAmount = new byte[4];
+                                    fileInfoByteBuffer.put(blockAmount);
                                     byte[] info = fileInfoByteBuffer.array();
                                     nodeInfos.add(info);
                                     sizeInfos += info.length;
@@ -294,7 +294,7 @@ public class FS_Tracker {
                         case 0: {
                             System.out.println("Conexão fechada com nodo: " + nodeSocket.getInetAddress().getHostAddress());
                             //Check if node is in node_files
-                            //If it is, remove it and remove it's files from file_locations
+                            //If it is, remove it and remove its files from file_locations
                             //Also, if file from file_locations has 0 elements, remove it
                             if (nodeFiles.containsKey(ipNode)) {
                                 Set<FileInfo> fileInfoSet = nodeFiles.remove(ipNode);
