@@ -111,9 +111,6 @@ public class FS_Node {
                             blockNodes.put(blockID, new ArrayList<>());
                         }
 
-                        for (byte[] fds : blocksToReceive.values())
-                            System.out.println(Arrays.toString(fds));
-
 
                         for (int node = 0; node < totalNodes; node++) {
 
@@ -146,19 +143,25 @@ public class FS_Node {
                             }
                         }
 
-                        //Concurrent Set of BlockPriority
-                        ConcurrentSkipListSet<BlockPriority> blockPrioritySet = new ConcurrentSkipListSet<>(Comparator.comparingInt(bp -> blockNodes.get(bp.id).size()));
-                        blockPrioritySet.addAll(blockNodes.keySet().stream().map(BlockPriority::new).collect(Collectors.toList()));
+                        //Concurrent List of BlockPriority
+                        List<BlockPriority> sortedBlockPriorityList =
+                                blockNodes
+                                        .entrySet().stream()
+                                        .sorted(Comparator.comparingInt(entry -> entry.getValue().size()))
+                                        .map(Map.Entry::getKey)
+                                        .map(BlockPriority::new)
+                                        .collect(Collectors.toList());
+
+                        CopyOnWriteArrayList<BlockPriority> blockPriorityList = new CopyOnWriteArrayList<>(sortedBlockPriorityList);
+
 
                         ConcurrentSkipListSet<String> ipsToTest = new ConcurrentSkipListSet<>();
-
-                        //Transfer blocks by order of priority
-
+                        
 
                         //CheckNode checkNode = new CheckNode(ipNodes, ipsToTest, out, in);
                         //new Thread(checkNode).start();
 
-                        UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipNodes, blockNodes, blocksToReceive, ipsToTest);
+                        UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPriorityList, ipNodes, blockNodes, blocksToReceive, ipsToTest);
                         Thread[] threads = new Thread[totalNodes];
 
                         for (int i = 0; i < totalNodes; i++) {
@@ -173,6 +176,7 @@ public class FS_Node {
                         //checkNode.interrupt();
 
                         System.out.println("Transferência concluída");
+
 
 
                         break;
@@ -243,20 +247,20 @@ public class FS_Node {
 
         private DatagramSocket socket;
         private String fileName;
-        private ConcurrentSkipListSet<BlockPriority> blockPrioritySet;
+        private CopyOnWriteArrayList<BlockPriority> blockPriorityList;
         private ConcurrentSkipListSet<String> ipsNodes;
         private ConcurrentHashMap<Integer, List<String>> nodesForBlocks;
         private ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive;
         private ConcurrentSkipListSet<String> ipsToTest;
 
 
-        public UDPRequestBlock(DatagramSocket socket, String fileName, ConcurrentSkipListSet<BlockPriority> blockPrioritySet,
+        public UDPRequestBlock(DatagramSocket socket, String fileName, CopyOnWriteArrayList<BlockPriority> blockPriorityList,
                                ConcurrentSkipListSet<String> ipsNodes, ConcurrentHashMap<Integer, List<String>> nodesForBlocks,
                                ConcurrentHashMap<BlockToReceive, byte[]> blocksToReceive, ConcurrentSkipListSet<String> ipsToTest) {
             try {
                 this.socket = socket;
                 this.fileName = fileName;
-                this.blockPrioritySet = blockPrioritySet;
+                this.blockPriorityList = blockPriorityList;
                 this.ipsNodes = ipsNodes;
                 this.nodesForBlocks = nodesForBlocks;
                 this.blocksToReceive = blocksToReceive;
@@ -270,9 +274,9 @@ public class FS_Node {
         @Override
         public void run() {
 
-            while (!blockPrioritySet.isEmpty()) {
+            while (!blockPriorityList.isEmpty()) {
 
-                for (BlockPriority blockPriority : blockPrioritySet) {
+                for (BlockPriority blockPriority : blockPriorityList) {
 
                     if (blockPriority.available) {
 
@@ -310,7 +314,7 @@ public class FS_Node {
                                         socket.send(requestPacket);
                                         Thread.sleep(1000);
                                         if (!blocksToReceive.containsKey(blockToReceive)) {
-                                            blockPrioritySet.remove(blockPriority);
+                                            blockPriorityList.remove(blockPriority);
                                             break;
                                         }
                                     }
