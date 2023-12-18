@@ -2,9 +2,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
@@ -14,13 +11,15 @@ import java.util.stream.Collectors;
 
 public class FS_Node {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
+
+        Socket socket = null;
 
         try {
             String server_ip = args[1];
             int server_port = Integer.parseInt(args[2]);
 
-            Socket socket = new Socket(server_ip, server_port);
+            socket = new Socket(server_ip, server_port);
 
             System.out.println("Conexão FS Track Protocol com servidor " + server_ip + " porta " + server_port);
 
@@ -30,10 +29,14 @@ public class FS_Node {
 
             // Ler file names no folder escolhido para partilhar com tracker
             File folder = new File(args[0]);
-            File[] listOfFiles = folder.listFiles();
+            if (!folder.exists()) {
+                if (!folder.mkdir()) {
+                    System.out.println("Erro ao criar pasta");
+                    return;
+                }
+            }
 
-
-            byte[] register_message = TPManager.registerMessage(listOfFiles);
+            byte[] register_message = TPManager.registerMessage(folder.listFiles());
 
 
             if (register_message != null) {
@@ -53,10 +56,7 @@ public class FS_Node {
 
 
             BufferedReader inStdin = new BufferedReader(new InputStreamReader(System.in));
-
-
             boolean loop = true;
-
             while (loop) {
 
                 String input = inStdin.readLine();
@@ -68,9 +68,9 @@ public class FS_Node {
                     case "GET": {
 
                         //Verificar se nodo já tem o ficheiro
-                        if (listOfFiles != null) {
+                        if (folder.listFiles() != null) {
                             boolean exists = false;
-                            for (File f : listOfFiles) {
+                            for (File f : folder.listFiles()) {
                                 if (f.getName().equals(option[1])) {
                                     exists = true;
                                     break;
@@ -79,7 +79,6 @@ public class FS_Node {
                             if (exists)
                                 break;
                         }
-
 
                         out.write(TPManager.getFileMessage(option[1]));
                         out.flush();
@@ -104,18 +103,6 @@ public class FS_Node {
                             in.readFully(hash, 0, 20);
                             blocksToReceive.put(new BlockToReceive(option[1], i), hash);
                         }
-
-
-                        //The rest of the message is the list of nodes
-                        //Each node is represented by 4 bytes for the IP and 4 bytes for the number of blocks available
-                        //If the number of blocks available is 0, the node has all the blocks
-                        //If the number of blocks available is not 0, the next 4 bytes represent the block ID
-                        //The number of blocks available is always followed by the block IDs
-
-                        //I want to ask each node for the blocks it has
-                        //I should ask for the blocks which are less common amongst the nodes first
-                        //I should ask the nodes which are faster first
-                        //I should ask the nodes which are more reliable first
 
 
                         //Concurrent Set of IPS
@@ -172,58 +159,29 @@ public class FS_Node {
                         }
 
 
+                        CheckNode checkNode = new CheckNode(ipsNodes, ipsToTest, out, in);
+                        new Thread(checkNode).start();
 
-                        /*
-
-                        //Thread executor = Executors.newFixedThreadPool(10);
-                        ExecutorService executor = Executors.newFixedThreadPool(nodosTotais);
-
-
-
-
-                        //run UDPTransferThread for each block until all blocks are transferred
-                        for (int i = 0; i < nodosTotais; i++) {
-                            executor.execute(new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive,ipsToTest));
-                        }
-
-                        //wait for all threads to finish
-                        executor.shutdown();
-
-                         */
-
-
-                        //CheckNode checkNode = new CheckNode(ipsNodes, ipsToTest, out, in);
-                        //new Thread(checkNode).start();
-
-                        UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive,ipsToTest);
+                        UDPRequestBlock udpRequestBlock = new UDPRequestBlock(socketUDP, option[1], blockPrioritySet, ipsNodes, nodesForBlocks, blocksToReceive, ipsToTest);
                         Thread[] threads = new Thread[nodosTotais];
 
-                        for (int i = 0; i <nodosTotais; i++){
+                        for (int i = 0; i < nodosTotais; i++) {
                             threads[i] = new Thread(udpRequestBlock);
                             threads[i].start();
                         }
 
-                        for (int i = 0; i<nodosTotais; i++){
+                        for (int i = 0; i < nodosTotais; i++) {
                             threads[i].join();
                         }
 
                         System.out.println("Transferência concluída");
 
-                        //checkNode.interrupt();
-
+                        checkNode.interrupt();
 
 
                         break;
                     }
 
-
-                    case "QUIT": {
-                        out.writeByte(0);
-                        out.flush();
-                        udpListener.stopThread();
-                        loop = false;
-                        break;
-                    }
 
                     case "FILES": {
                         out.writeByte(3);
@@ -248,27 +206,39 @@ public class FS_Node {
                     }
 
 
+                    case "EXIT": {
+                        out.writeByte(0);
+                        out.flush();
+                        udpListener.stopThread();
+                        loop = false;
+                        break;
+                    }
+
+
                 }
 
 
             }
 
 
-            System.out.println("Terminando Programa...");
-
-            socket.shutdownInput();
-            socket.shutdownOutput();
-            socket.close();
         } catch (ConnectException e) {
             System.err.println("Conexão ao servidor falhada!");
         } catch (IOException e) {
             e.printStackTrace();
-
-
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | InterruptedException e) {
             throw new RuntimeException(e);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        }
+        finally {
+            System.out.println("Terminando Programa...");
+            if (socket != null) {
+                try {
+                    socket.shutdownInput();
+                    socket.shutdownOutput();
+                    socket.close();
+                } catch (IOException e) {
+                    System.err.println("Erro ao fechar socket");
+                }
+            }
         }
 
     }
@@ -355,8 +325,7 @@ public class FS_Node {
                                         //ask transfer if this ip is still available
                                         //if not, remove from ipsNodes
                                         //if yes, try again
-                                    }
-                                    else ipsNodes.add(ip);
+                                    } else ipsNodes.add(ip);
 
                                 } catch (IOException | InterruptedException ex) {
                                     throw new RuntimeException(ex);
@@ -383,43 +352,43 @@ public class FS_Node {
     //If ip is not available, remove from ipsNodes
     public static class CheckNode extends Thread {
 
-            ConcurrentSkipListSet<String> ipsNodes;
-            ConcurrentSkipListSet<String> ipsToTest;
-            DataOutputStream out;
-            DataInputStream in;
+        ConcurrentSkipListSet<String> ipsNodes;
+        ConcurrentSkipListSet<String> ipsToTest;
+        DataOutputStream out;
+        DataInputStream in;
 
 
-            public CheckNode(ConcurrentSkipListSet<String> ipsNodes, ConcurrentSkipListSet<String> ipsToTest, DataOutputStream out, DataInputStream in){
-                this.ipsNodes = ipsNodes;
-                this.ipsToTest = ipsToTest;
-                this.out = out;
-                this.in = in;
-            }
+        public CheckNode(ConcurrentSkipListSet<String> ipsNodes, ConcurrentSkipListSet<String> ipsToTest, DataOutputStream out, DataInputStream in) {
+            this.ipsNodes = ipsNodes;
+            this.ipsToTest = ipsToTest;
+            this.out = out;
+            this.in = in;
+        }
 
-            @Override
-            public void run() {
+        @Override
+        public void run() {
 
-                while (true) {
+            while (true) {
 
-                    for (String ip : ipsToTest) {
+                for (String ip : ipsToTest) {
 
-                        //send message thru out to tracker asking if ip is still available
-                        try {
-                            out.write(TPManager.checkNodeMessage(ip));
-                            out.flush();
-                            byte response = in.readByte();
-                            if (response == 0)
-                                ipsNodes.add(ip);
-                            ipsToTest.remove(ip);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-
+                    //send message thru out to tracker asking if ip is still available
+                    try {
+                        out.write(TPManager.checkNodeMessage(ip));
+                        out.flush();
+                        byte response = in.readByte();
+                        if (response == 0)
+                            ipsNodes.add(ip);
+                        ipsToTest.remove(ip);
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
 
                 }
 
             }
+
+        }
 
     }
 
@@ -466,8 +435,7 @@ public class FS_Node {
 
                     new Thread(new UDPDataHandler(socket, packet, folder, blocksToSend, blocksToReceive, out)).start();
 
-                }
-                catch (IOException e) {
+                } catch (IOException e) {
                     // If the socket was closed, just terminate the thread
                     if (socket.isClosed()) {
                         return;
@@ -509,7 +477,7 @@ public class FS_Node {
                 byte[] receivedData = packet.getData();
 
                 byte[] test = new byte[packet.getLength()];
-                System.arraycopy(receivedData,0,test,0,packet.getLength());
+                System.arraycopy(receivedData, 0, test, 0, packet.getLength());
                 System.out.println(Arrays.toString(test));
 
                 InetAddress senderAddress = packet.getAddress();
@@ -520,7 +488,7 @@ public class FS_Node {
                 String name = new String(receivedData, 2, size_name);
                 int blockID = Serializer.fourBytesToInt(Arrays.copyOfRange(receivedData, 2 + size_name, 2 + size_name + 4));
 
-                if (folder.listFiles()==null)
+                if (folder.listFiles() == null)
                     return;
 
                 File file = null;
@@ -646,8 +614,7 @@ public class FS_Node {
                     }
 
 
-                }
-                else if (receivedData[0] == 2){
+                } else if (receivedData[0] == 2) {
 
                     BlockToSend blockToSend = new BlockToSend(name, blockID, senderAddress.getHostAddress());
 

@@ -1,4 +1,3 @@
-import javax.swing.*;
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -17,11 +16,12 @@ public class FS_Tracker {
 
             tracker = new ServerSocket(9090);
 
-            //System.out.println("Servidor ativo em : " + InetAddress.getLocalHost().getHostAddress() + " porta " + tracker.getLocalPort());
+            System.out.println("Servidor ativo na porta: " + tracker.getLocalPort());
 
-            ConcurrentHashMap<String, List<FileInfo>> node_files = new ConcurrentHashMap<>();
-            ConcurrentHashMap<String, List<String>> file_Locations = new ConcurrentHashMap<>();
-            ConcurrentHashMap<String, List<byte[]>> file_hash = new ConcurrentHashMap<>();
+
+            ConcurrentHashMap<String, Set<FileInfo>> nodeFiles = new ConcurrentHashMap<>();
+            ConcurrentHashMap<String, Set<String>> fileLocations = new ConcurrentHashMap<>();
+            ConcurrentHashMap<String, List<byte[]>> fileHashes = new ConcurrentHashMap<>();
 
 
             while (true) {
@@ -33,7 +33,7 @@ public class FS_Tracker {
 
                 System.out.println("Novo nodo conectado: " + ipNode);
 
-                NodeHandler nodeHandler = new NodeHandler(node, node_files, file_Locations, file_hash, ipNode);
+                NodeHandler nodeHandler = new NodeHandler(node, nodeFiles, fileLocations, fileHashes, ipNode);
 
                 new Thread(nodeHandler).start();
             }
@@ -56,17 +56,17 @@ public class FS_Tracker {
     private static class NodeHandler implements Runnable {
 
         private final Socket nodeSocket;
-        private ConcurrentHashMap<String, List<FileInfo>> node_files;
-        private ConcurrentHashMap<String, List<String>> file_locations;
-        private ConcurrentHashMap<String, List<byte[]>> file_hash;
-        private String ip_node;
+        private final ConcurrentHashMap<String, Set<FileInfo>> nodeFiles;
+        private final ConcurrentHashMap<String, Set<String>> fileLocations;
+        private final ConcurrentHashMap<String, List<byte[]>> fileHashes;
+        private final String ipNode;
 
-        public NodeHandler(Socket socket, ConcurrentHashMap<String, List<FileInfo>> node_files, ConcurrentHashMap<String, List<String>> file_locations, ConcurrentHashMap<String, List<byte[]>> file_hash, String ip_node) {
+        public NodeHandler(Socket socket, ConcurrentHashMap<String, Set<FileInfo>> nodeFiles, ConcurrentHashMap<String, Set<String>> fileLocations, ConcurrentHashMap<String, List<byte[]>> file_hash, String ipNode) {
             this.nodeSocket = socket;
-            this.node_files = node_files;
-            this.file_locations = file_locations;
-            this.file_hash = file_hash;
-            this.ip_node = ip_node;
+            this.nodeFiles = nodeFiles;
+            this.fileLocations = fileLocations;
+            this.fileHashes = file_hash;
+            this.ipNode = ipNode;
         }
 
 
@@ -85,105 +85,102 @@ public class FS_Tracker {
 
                     switch (choice) {
 
-
+                        //REGISTER
                         case 1: {
 
-                            byte number_files = in.readByte();
+                            byte filesAmount = in.readByte();
 
 
-                            for (byte i = 0; i < number_files; i++) {
+                            for (byte fileI = 0; fileI < filesAmount; fileI++) {
 
-                                byte size_name = in.readByte();
-                                byte[] name_bytes = new byte[size_name];
-                                in.readFully(name_bytes, 0, size_name);
-                                String name = new String(name_bytes, StandardCharsets.UTF_8);
+                                byte sizeName = in.readByte();
+                                byte[] nameBytes = new byte[sizeName];
+                                in.readFully(nameBytes, 0, sizeName);
+                                String fileName = new String(nameBytes, StandardCharsets.UTF_8);
 
-                                byte[] blocos_quantidade_bytes = new byte[4];
-                                in.readFully(blocos_quantidade_bytes, 0, 4);
-                                int blocos_quantidade = Serializer.fourBytesToInt(blocos_quantidade_bytes);
+                                int blockAmount = in.readInt();
 
-                                byte[] size_blocos_disponiveis_bytes = new byte[4];
-                                in.readFully(size_blocos_disponiveis_bytes, 0, 4);
-                                int size_blocos_disponiveis = Serializer.fourBytesToInt(size_blocos_disponiveis_bytes);
+                                int blocksAvailableAmount = in.readInt();
 
                                 FileInfo fileInfo;
                                 byte[] sha1Encoding = null;
-                                if (size_blocos_disponiveis == 0) {
-                                    fileInfo = new FileInfo(name, blocos_quantidade);
-                                    sha1Encoding = new byte[20 * blocos_quantidade];
-                                    in.readFully(sha1Encoding, 0, 20 * blocos_quantidade);
-                                } else {
-                                    Set<Integer> blocos = new HashSet<>();
-                                    for (int b = 0; b < size_blocos_disponiveis; b++) {
-                                        byte[] bloco_buffer = new byte[4];
-                                        in.readFully(bloco_buffer, 0, 4);
-                                        blocos.add(Serializer.fourBytesToInt(bloco_buffer));
+
+                                if (blocksAvailableAmount == 0) {
+                                    fileInfo = new FileInfo(fileName, blockAmount);
+                                    sha1Encoding = new byte[20 * blockAmount];
+                                    in.readFully(sha1Encoding, 0, 20 * blockAmount);
+                                }
+                                else {
+                                    Set<Integer> blocksAvailable = new HashSet<>();
+                                    for (int blockI = 0; blockI < blocksAvailableAmount; blockI++) {
+                                        blocksAvailable.add(in.readInt());
                                     }
-                                    fileInfo = new FileInfo(name, blocos_quantidade, blocos);
+                                    fileInfo = new FileInfo(fileName, blockAmount, blocksAvailable);
                                 }
 
-                                if (!node_files.containsKey(ip_node)) {
-                                    List<FileInfo> fileInfoList = new ArrayList<>();
-                                    fileInfoList.add(fileInfo);
-                                    node_files.put(ip_node, fileInfoList);
+                                if (!nodeFiles.containsKey(ipNode)) {
+                                    Set<FileInfo> fileInfoSet = new HashSet<>();
+                                    fileInfoSet.add(fileInfo);
+                                    nodeFiles.put(ipNode, fileInfoSet);
                                 } else {
-                                    node_files.get(ip_node).add(fileInfo);
+                                    nodeFiles.get(ipNode).add(fileInfo);
                                 }
 
-                                if (!file_locations.containsKey(fileInfo.getNome())) {
-                                    List<String> locations = new ArrayList<>();
-                                    locations.add(ip_node);
-                                    file_locations.put(fileInfo.getNome(), locations);
+                                if (!fileLocations.containsKey(fileName)) {
+                                    Set<String> locations = new HashSet<>();
+                                    locations.add(ipNode);
+                                    fileLocations.put(fileName, locations);
                                 } else {
-                                    file_locations.get(fileInfo.getNome()).add(ip_node);
+                                    fileLocations.get(fileName).add(ipNode);
                                 }
 
                                 if (sha1Encoding != null) {
-                                    if (!file_hash.containsKey(name)) {
-                                        List<byte[]> tempList = new ArrayList<>();
-                                        for (int id = 0; id < blocos_quantidade; id++) {
-                                            byte[] tempByte = new byte[20];
-                                            System.arraycopy(sha1Encoding, id * 20, tempByte, 0, 20);
-                                            tempList.add(tempByte);
+                                    if (!fileHashes.containsKey(fileName)) {
+                                        List<byte[]> tempHashesList = new ArrayList<>();
+                                        byte[] tempHash = new byte[20];
+                                        for (int blockID = 0; blockID < blockAmount; blockID++) {
+                                            System.arraycopy(sha1Encoding, blockID * 20, tempHash, 0, 20);
+                                            tempHashesList.add(tempHash);
                                         }
-                                        file_hash.put(name, tempList);
+                                        fileHashes.put(fileName, tempHashesList);
                                     }
                                 }
 
-                                System.out.println(file_hash);
-
                             }
-
 
                             break;
                         }
 
 
                         //UPDATE
-                        //read tpmanager.getupdatemesage
                         case 2: {
 
                             byte sizeName = in.readByte();
                             byte[] nameBytes = new byte[sizeName];
                             in.readFully(nameBytes, 0, sizeName);
-                            String name = new String(nameBytes, StandardCharsets.UTF_8);
+                            String fileName = new String(nameBytes, StandardCharsets.UTF_8);
+
                             int bloco = in.readInt();
 
-                            List<String> locations = file_locations.get(name);
+                            Set<String> locations = fileLocations.get(fileName);
 
-                            if (!locations.contains(ip_node)) {
-                                locations.add(ip_node);
+                            if (!locations.contains(ipNode)) {
+                                locations.add(ipNode);
 
-                                Set<Integer> blocos_disponiveis = new HashSet<>();
-                                blocos_disponiveis.add(bloco);
-                                FileInfo fileInfo = new FileInfo(name, file_hash.get(name).size(), blocos_disponiveis);
-                                if (node_files.get(ip_node) == null)
-                                    node_files.put(ip_node,new ArrayList<>());
-                                node_files.get(ip_node).add(fileInfo);
-                            } else {
-                                List<FileInfo> fileInfoList = node_files.get(ip_node);
-                                for (FileInfo fileInfo : fileInfoList) {
-                                    if (fileInfo.getNome().equals(name)) {
+                                Set<Integer> blocksAvailable = new HashSet<>();
+                                blocksAvailable.add(bloco);
+                                int blockAmount = fileHashes.get(fileName).size();
+                                FileInfo fileInfo = new FileInfo(fileName, blockAmount, blocksAvailable);
+
+                                nodeFiles.computeIfAbsent(ipNode, fi -> new HashSet<>());
+
+                                nodeFiles.get(ipNode).add(fileInfo);
+                            }
+
+                            else {
+                                Set<FileInfo> fileInfoSet = nodeFiles.get(ipNode);
+                                for (FileInfo fileInfo : fileInfoSet) {
+                                    if (fileInfo.getNome().equals(fileName)) {
                                         fileInfo.addBlocoDisponivel(bloco);
                                         break;
                                     }
@@ -195,21 +192,24 @@ public class FS_Tracker {
                         }
 
 
+                        //LIST FILES AVAILABLE
                         case 3: {
-                            byte[] message = TPManager.filesAvailableMessage(file_locations.keySet());
+                            byte[] message = TPManager.filesAvailableMessage(fileHashes.keySet());
                             out.write(message);
                             out.flush();
+
                             break;
                         }
 
 
-                        //GET file
+                        //GET FILE
                         case 4: {
-                            byte size_fileName = in.readByte();
-                            byte[] fileName_bytes = new byte[size_fileName];
-                            in.readFully(fileName_bytes, 0, size_fileName);
-                            String fileName = new String(fileName_bytes, StandardCharsets.UTF_8);
-                            List<String> ips = file_locations.get(fileName);
+                            byte sizeName = in.readByte();
+                            byte[] nameBytes = new byte[sizeName];
+                            in.readFully(nameBytes, 0, sizeName);
+                            String fileName = new String(nameBytes, StandardCharsets.UTF_8);
+
+                            Set<String> ips = fileLocations.get(fileName);
 
                             if (ips == null) {
                                 out.writeByte(0);
@@ -217,65 +217,56 @@ public class FS_Tracker {
                                 break;
                             }
 
-                            int nodos_totais = ips.size();
-                            int blocos_quantidade;
-                            List<byte[]> hashes = new ArrayList<>();
-                            int size_mensagem = 0;
-                            List<byte[]> nodo_mensagens = new ArrayList<>();
-
-
-                            blocos_quantidade = file_hash.get(fileName).size();
-
-                            //Go to filehash and copy each byte[] to hashes
-                            for (byte[] hash : file_hash.get(fileName)){
-                                hashes.add(hash);
-                            }
+                            int sizeInfos = 0;
+                            List<byte[]> nodeInfos = new ArrayList<>();
 
                             for (String ip : ips) {
 
-                                List<FileInfo> fileInfoList = node_files.get(ip);
+                                Set<FileInfo> fileInfoSet = nodeFiles.get(ip);
                                 FileInfo fileInfo = null;
-                                for (FileInfo f : fileInfoList)
+                                for (FileInfo f : fileInfoSet)
                                     if (f.getNome().equals(fileName)) {
                                         fileInfo = f;
                                         break;
                                     }
 
-
-                                if (fileInfo.complete) {
-                                    ByteBuffer byteBufferTemp = ByteBuffer.allocate(4 + 4);
+                                if (fileInfo.isComplete()) {
+                                    ByteBuffer fileInfoByteBuffer = ByteBuffer.allocate(4 + 4);
                                     byte[] ipBytes = InetAddress.getByName(ip).getAddress();
-                                    byteBufferTemp.put(ipBytes);
-                                    byte[] number_blocks = new byte[4];
-                                    byteBufferTemp.put(number_blocks);
-                                    byte[] msg = byteBufferTemp.array();
-                                    nodo_mensagens.add(msg);
-                                    size_mensagem += msg.length;
-                                } else {
-                                    Set<Integer> fds = fileInfo.blocos_disponiveis;
-                                    ByteBuffer byteBufferTemp = ByteBuffer.allocate(4 + 4 + 4 * fds.size());
+                                    fileInfoByteBuffer.put(ipBytes);
+                                    byte[] blockAmmount = new byte[4];
+                                    fileInfoByteBuffer.put(blockAmmount);
+                                    byte[] info = fileInfoByteBuffer.array();
+                                    nodeInfos.add(info);
+                                    sizeInfos += info.length;
+                                }
+                                else {
+                                    Set<Integer> blocksAvailable = fileInfo.getBlocksAvailable();
+                                    ByteBuffer fileInfoByteBuffer = ByteBuffer.allocate(4 + 4 + 4 * blocksAvailable.size());
                                     byte[] ipBytes = InetAddress.getByName(ip).getAddress();
-                                    byteBufferTemp.put(ipBytes);
-                                    byteBufferTemp.put(Serializer.intToFourBytes(fds.size()));
-                                    for (int a : fds) {
-                                        byteBufferTemp.put(Serializer.intToFourBytes(a));
+                                    fileInfoByteBuffer.put(ipBytes);
+                                    fileInfoByteBuffer.put(Serializer.intToFourBytes(blocksAvailable.size()));
+                                    for (int blockID : blocksAvailable) {
+                                        fileInfoByteBuffer.put(Serializer.intToFourBytes(blockID));
                                     }
-                                    byte[] msg = byteBufferTemp.array();
-                                    size_mensagem += msg.length;
-                                    nodo_mensagens.add(msg);
+                                    byte[] info = fileInfoByteBuffer.array();
+                                    sizeInfos += info.length;
+                                    nodeInfos.add(info);
                                 }
 
                             }
 
-                            ByteBuffer byteBuffer = ByteBuffer.allocate(2 + 4 + hashes.size() * 20 + size_mensagem);
+                            List<byte[]> hashes = fileHashes.get(fileName);
 
-                            byteBuffer.put(Serializer.intToTwoBytes(nodos_totais));
-                            byteBuffer.put(Serializer.intToFourBytes(blocos_quantidade));
-                            for (byte[] bytes : hashes) {
-                                byteBuffer.put(bytes);
+                            ByteBuffer byteBuffer = ByteBuffer.allocate(2 + 4 + hashes.size() * 20 + sizeInfos);
+
+                            byteBuffer.put(Serializer.intToTwoBytes(ips.size()));
+                            byteBuffer.put(Serializer.intToFourBytes(fileHashes.get(fileName).size()));
+                            for (byte[] hash : hashes) {
+                                byteBuffer.put(hash);
                             }
-                            for (byte[] bytes : nodo_mensagens)
-                                byteBuffer.put(bytes);
+                            for (byte[] nodeInfo : nodeInfos)
+                                byteBuffer.put(nodeInfo);
 
                             out.write(byteBuffer.array());
                             out.flush();
@@ -283,259 +274,49 @@ public class FS_Tracker {
                             break;
                         }
 
-                        case 5: {
-                            byte size_fileName = in.readByte();
-                            byte[] fileName_bytes = new byte[size_fileName];
-                            in.readFully(fileName_bytes, 0, size_fileName);
-                            String fileName = new String(fileName_bytes, StandardCharsets.UTF_8);
-                            byte[] blocoBytes = new byte[4];
-                            in.readFully(blocoBytes, 0, 4);
-                            int bloco = Serializer.fourBytesToInt(blocoBytes);
-                            out.write(file_hash.get(fileName).get(bloco));
+
+                        //CHECK IF NODE IS STILL CONNECTED
+                        case 8: {
+                            byte[] message = new byte[4];
+                            in.readFully(message, 0, 4);
+                            String ip = InetAddress.getByAddress(message).getHostAddress();
+                            if (nodeFiles.containsKey(ip))
+                                out.writeByte(1);
+                            else
+                                out.writeByte(0);
+
                             out.flush();
                             break;
                         }
 
 
-                        //check if node still online
-                            //the message recieved is checkNodemMessage
-                        case 8: {
-                            //get checkNodeMessage
-                            //in.read 4 bytes
-                            byte[] message = new byte[4];
-                            in.readFully(message, 0, 4);
-                            //byte[4] to ip
-                            String ip = InetAddress.getByAddress(message).getHostAddress();
-                            if (node_files.containsKey(ip)) {
-                                out.writeByte(1);
-                                out.flush();
-                            } else {
-                                out.writeByte(0);
-                                out.flush();
-                            }
-                            break;
-                        }
-
+                        //EXIT
                         case 0: {
                             System.out.println("Conexão fechada com nodo: " + nodeSocket.getInetAddress().getHostAddress());
-                            loop = false;
                             //Check if node is in node_files
                             //If it is, remove it and remove it's files from file_locations
                             //Also, if file from file_locations has 0 elements, remove it
-                            if (node_files.containsKey(ip_node)) {
-                                List<FileInfo> fileInfoList = node_files.remove(ip_node);
-                                for (FileInfo fileInfo : fileInfoList) {
-                                    List<String> locations = file_locations.get(fileInfo.getNome());
-                                    locations.remove(ip_node);
+                            if (nodeFiles.containsKey(ipNode)) {
+                                Set<FileInfo> fileInfoSet = nodeFiles.remove(ipNode);
+                                for (FileInfo fileInfo : fileInfoSet) {
+                                    Set<String> locations = fileLocations.get(fileInfo.getNome());
+                                    locations.remove(ipNode);
                                     if (locations.isEmpty()) {
-                                        file_locations.remove(fileInfo.getNome());
-                                    }
-                                }
-                            }
-                            break;
-                        }
-
-
-                    }
-
-
-                }
-
-
-
-
-                /*
-                byte[] choice_read = new byte[1];
-                in.readFully(choice_read,0,1);
-
-
-                System.out.println(new String(choice_read,StandardCharsets.UTF_8));
-
-                byte[] size_size = new byte[1];
-                in.readFully(size_size,0,1);
-
-                byte sizefds = size_size[0];
-
-                byte[] size = new byte[sizefds];
-                in.readFully(size,0,sizefds);
-
-                int sizemano = Integer.getInteger(new String(size,StandardCharsets.UTF_8));
-
-
-                byte[] mssg = new byte[sizemano];
-                in.readFully(mssg,0,sizemano);
-
-
-                System.out.println(Arrays.toString(mssg));
-
-                 */
-
-
-                /*
-                boolean loop = true;
-
-                while (loop) {
-
-                    int length = in.readInt();
-
-                    System.out.println(length);
-
-                    byte[] received = new byte[length];
-                    in.readFully(received,0,length);
-
-                    byte choice = received[0];
-
-                    switch (choice){
-
-                        case 1: {
-
-                            FileInfo fileInfo = FileInfo.deserialize(received);
-
-                            if (!node_files.containsKey(ip_node)){
-                                List<FileInfo> fileInfoList = new ArrayList<>();
-                                fileInfoList.add(fileInfo);
-                                node_files.put(ip_node,fileInfoList);
-                            }
-                            else {
-                                node_files.get(ip_node).add(fileInfo);
-                            }
-
-                            if (!file_locations.containsKey(fileInfo.getNome())){
-                                List<String> locations = new ArrayList<>();
-                                locations.add(ip_node);
-                                file_locations.put(fileInfo.getNome(),locations);
-                            }
-                            else {
-                                file_locations.get(fileInfo.getNome()).add(ip_node);
-                            }
-
-
-                            break;
-
-                        }
-
-                        case 2: {
-
-                            List<String> file_names = new ArrayList<>(file_locations.keySet());
-
-                            String message_buffer = String.join(" ",file_names);
-
-                            System.out.println(message_buffer);
-
-                            byte[] message = message_buffer.getBytes();
-
-                            out.writeInt(message.length);
-                            out.write(message);
-                            out.flush();
-
-                            break;
-                        }
-
-                        case 3:{
-
-                            System.out.println("GET");
-
-                            String file_name = new String(received, StandardCharsets.UTF_8).substring(1);
-
-                            List<String> ips = new ArrayList<>();
-
-                            if (file_locations.containsKey(file_name)){
-                                ips = file_locations.get(file_name);
-                            }
-
-
-                            out.writeInt(ips.size());
-
-                            
-                            out.flush();
-
-                            if (!ips.isEmpty()) {
-                                for (String ip : ips){
-                                    List<FileInfo> fileInfoList = node_files.get(ip);
-                                    for (FileInfo fileInfo : fileInfoList){
-                                        if (fileInfo.getNome().equals(file_name)){
-                                            System.out.println(fileInfo);
-                                            byte[] fileInfoBytes = fileInfo.serialize();
-                                            System.out.println(FileInfo.deserialize(fileInfoBytes)   );
-                                            out.writeInt(fileInfoBytes.length);
-                                            out.write(fileInfoBytes);
-                                            out.flush();
-                                            break;
-                                        }
-                                    }   
-                                }
-                            }
-                            else break;
-
-                        }
-
-                        case 4:{
-
-
-                        }
-
-                        /*
-
-                        case "UPDATE": {
-
-                            int size = in.readInt();
-
-                            List<InfoPacket> files = new ArrayList<>();
-
-                            for (int i = 0; i<size; i++){
-                                InfoPacket file = (InfoPacket) in.readObject();
-                                files.add(file);
-                            }
-
-                            node_files.put(ip_node,files);
-
-                            System.out.println(node_files);
-
-                            break;
-                        }
-
-
-
-
-                        case "GET":{
-
-                            String file = in.readUTF();
-
-                            for (Map.Entry<String,List<InfoPacket>> entry : node_files.entrySet()){
-                                for (InfoPacket name : entry.getValue()){
-                                    if (name.getNome().equals(file)){
-                                        out.writeUTF(entry.getKey());
-                                        out.writeObject(name);
-                                        out.flush();
-                                        break;
+                                        fileLocations.remove(fileInfo.getNome());
                                     }
                                 }
                             }
 
-                            out.writeUTF("end");
-                            out.flush();
-                            break;
-
-                        }
-
-
-
-
-                        case 0:{
                             loop = false;
                             break;
                         }
 
 
-
-
-
                     }
 
 
                 }
 
-                */
 
 
             } catch (IOException e) {
@@ -552,20 +333,5 @@ public class FS_Tracker {
         }
     }
 
-
-    public static String generateRandomIp() {
-        Random random = new Random();
-        StringBuilder ipAddress = new StringBuilder();
-
-        for (int i = 0; i < 4; i++) {
-            ipAddress.append(random.nextInt(256));
-
-            if (i < 3) {
-                ipAddress.append(".");
-            }
-        }
-
-        return ipAddress.toString();
-    }
 
 }

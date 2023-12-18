@@ -1,45 +1,51 @@
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class FileInfo implements Comparable<FileInfo> {
 
-    private String nome;
-    private int blocos_quantidade;
-    Set<Integer> blocos_disponiveis;
-    boolean complete = false;
+    private final String nome;
+    private final int blockAmount;
+    private Set<Integer> blocksAvailable;
+    private boolean complete = false;
 
-    public FileInfo(String nome, int blocos_quantidade) {
+    public FileInfo(String nome, int blockAmount) {
         this.nome = nome;
-        this.blocos_quantidade = blocos_quantidade;
+        this.blockAmount = blockAmount;
         complete = true;
     }
 
-    public FileInfo(String nome, int blocos_quantidade, Set<Integer> blocos_disponiveis) {
+    public FileInfo(String nome, int blockAmount, Set<Integer> blocksAvailable) {
         this.nome = nome;
-        this.blocos_quantidade = blocos_quantidade;
-        if (blocos_quantidade == blocos_disponiveis.size())
+        this.blockAmount = blockAmount;
+        if (blockAmount == blocksAvailable.size())
             complete = true;
         else
-            this.blocos_disponiveis = blocos_disponiveis;
-    }
-
-
-    @Override
-    public String toString() {
-        if (blocos_disponiveis == null)
-            return this.nome + ";" + this.blocos_quantidade;
-        else
-            return this.nome + ";" + this.blocos_quantidade + ";" + this.blocos_disponiveis;
+            this.blocksAvailable = blocksAvailable;
     }
 
     public String getNome() {
         return nome;
     }
 
-    public int getBlocos_quantidade() {
-        return blocos_quantidade;
+    public int getBlockAmount() {
+        return blockAmount;
+    }
+
+    public boolean isComplete() {
+        return complete;
+    }
+
+    public Set<Integer> getBlocksAvailable() {
+        return new HashSet<>(blocksAvailable);
+    }
+
+
+    @Override
+    public String toString() {
+        if (blocksAvailable == null)
+            return this.nome + ";" + this.blockAmount;
+        else
+            return this.nome + ";" + this.blockAmount + ";" + this.blocksAvailable;
     }
 
 
@@ -49,11 +55,16 @@ public class FileInfo implements Comparable<FileInfo> {
     }
 
 
+
+
+
+
+
     public byte[] fileInfoToBytes() {
 
         byte size_name = (byte) this.nome.length();
         byte[] name = this.nome.getBytes();
-        byte[] blocos_quantidade = Serializer.intToFourBytes(this.blocos_quantidade);
+        byte[] blocos_quantidade = Serializer.intToFourBytes(this.blockAmount);
         byte[] blocos_disponiveis_size;
         byte[] blocos_disponiveis;
 
@@ -65,11 +76,11 @@ public class FileInfo implements Comparable<FileInfo> {
 
         else {
 
-            blocos_disponiveis_size = Serializer.intToFourBytes(this.blocos_disponiveis.size());
+            blocos_disponiveis_size = Serializer.intToFourBytes(this.blocksAvailable.size());
 
-            ByteBuffer buffer_blocos_disponiveis = ByteBuffer.allocate(this.blocos_disponiveis.size() * 4);
+            ByteBuffer buffer_blocos_disponiveis = ByteBuffer.allocate(this.blocksAvailable.size() * 4);
 
-            for (Integer i : this.blocos_disponiveis)
+            for (Integer i : this.blocksAvailable)
                 buffer_blocos_disponiveis.put(Serializer.intToFourBytes(i));
 
             blocos_disponiveis = buffer_blocos_disponiveis.array();
@@ -87,10 +98,10 @@ public class FileInfo implements Comparable<FileInfo> {
     }
 
     public void addBlocoDisponivel(int bloco){
-        blocos_disponiveis.add(bloco);
-        if (blocos_disponiveis.size() == blocos_quantidade) {
+        blocksAvailable.add(bloco);
+        if (blocksAvailable.size() == blockAmount) {
             complete = true;
-            blocos_disponiveis = null;
+            blocksAvailable = null;
         }
     }
 
