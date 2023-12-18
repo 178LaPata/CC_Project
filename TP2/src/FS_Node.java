@@ -654,6 +654,7 @@ public class FS_Node {
 
     }
 
+
     public static class BlockToReceive {
 
         private final String nameFile;
@@ -691,6 +692,22 @@ public class FS_Node {
         private BlockPriority(int id) {
             this.id = id;
             this.available = true;
+        }
+
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            BlockPriority other = (BlockPriority) obj;
+            return id == other.id;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id);
         }
     }
 
