@@ -480,7 +480,9 @@ public class FS_Node {
 
                 int size_name = receivedData[1];
                 String name = new String(receivedData, 2, size_name);
-                int blockID = Serializer.fourBytesToInt(Arrays.copyOfRange(receivedData, 3 + size_name, 3 + size_name + 4));
+                byte[] blockIDBytes = new byte[4];
+                System.arraycopy(receivedData,2+size_name, blockIDBytes, 0, 4);
+                int blockID = Serializer.fourBytesToInt(blockIDBytes);
 
                 if (folder.listFiles() == null)
                     return;
