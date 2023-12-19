@@ -324,7 +324,7 @@ public class FS_Node {
                                     int attempt;
                                     for (attempt = 0; attempt < 3; attempt++) {
                                         socket.send(requestPacket);
-                                        Thread.sleep(1000);
+                                        Thread.sleep(10);
                                         if (!blocksToReceive.containsKey(blockToReceive)) {
                                             blockPriorityList.remove(blockPriority);
                                             blocksTransferedAtomic.incrementAndGet();
@@ -549,7 +549,7 @@ public class FS_Node {
 
                             for (int attempt = 0; attempt < 3; attempt++) {
                                 socket.send(responsePacket);
-                                Thread.sleep(1000);
+                                Thread.sleep(10);
                                 if (!blocksToSend.contains(blockToSend))
                                     break;
                             }
